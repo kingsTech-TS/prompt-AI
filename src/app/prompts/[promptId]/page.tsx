@@ -4,13 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/protected-route";
-import Header from "@/components/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +25,7 @@ import {
   ChatMessageRequest,
 } from "@/lib/types";
 import { promptsApi, chatApi } from "@/lib/api";
-import { Copy, Trash2, Send, RefreshCw } from "lucide-react";
+import { Copy, Trash2, Send, Sparkles, User, Check } from "lucide-react";
 import Image from "next/image";
 
 export default function PromptDetailPage() {
@@ -37,6 +34,7 @@ export default function PromptDetailPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: prompt, isLoading: promptLoading } = useQuery<PromptResponse>({
@@ -67,27 +65,6 @@ export default function PromptDetailPage() {
         title: "Failed to send message",
         description:
           error.message || "An error occurred while sending the message",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const clearHistoryMutation = useMutation({
-    mutationFn: async () => {
-      return await chatApi.clearHistory(promptId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", promptId] });
-      toast({
-        title: "Chat history cleared",
-        description: "The chat has been reset to the original prompt",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to clear history",
-        description:
-          error.message || "An error occurred while clearing the history",
         variant: "destructive",
       });
     },
@@ -124,6 +101,8 @@ export default function PromptDetailPage() {
   const handleCopyPrompt = () => {
     if (prompt?.generated_prompt) {
       navigator.clipboard.writeText(prompt.generated_prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
       toast({
         title: "Prompt copied!",
         description: "The prompt has been copied to your clipboard",
@@ -142,13 +121,15 @@ export default function PromptDetailPage() {
   if (promptLoading || chatLoading) {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1 container mx-auto px-4 py-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-muted rounded w-1/3" />
-              <div className="h-4 bg-muted rounded w-1/2" />
-              <div className="h-64 bg-muted rounded" />
+        <div className="flex h-screen">
+          <Sidebar />
+          <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-pulse space-y-6 w-full max-w-4xl px-8">
+                <div className="h-8 bg-[var(--theme-background-tertiary)] rounded-xl w-1/3" />
+                <div className="h-4 bg-[var(--theme-background-tertiary)] rounded-xl w-1/2" />
+                <div className="h-80 bg-[var(--theme-background-tertiary)] rounded-2xl" />
+              </div>
             </div>
           </main>
         </div>
@@ -159,184 +140,181 @@ export default function PromptDetailPage() {
   if (!prompt || !chatSession) {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1 container mx-auto px-4 py-8 text-center">
-            <p className="text-destructive text-lg">Prompt not found</p>
+        <div className="flex h-screen">
+          <Sidebar />
+          <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-red-400 text-xl font-medium">Prompt not found</p>
+            </div>
           </main>
         </div>
       </ProtectedRoute>
     );
   }
 
+  // Check if the first message in chatSession is already the generated prompt to avoid duplicates
+  const firstChatMessage = chatSession.messages[0];
+  const hasDuplicatePrompt =
+    firstChatMessage &&
+    firstChatMessage.role === "assistant" &&
+    firstChatMessage.content.trim() === prompt.generated_prompt.trim();
+
+  const allMessages = hasDuplicatePrompt
+    ? chatSession.messages
+    : [
+        {
+          id: "system-prompt",
+          role: "assistant" as const,
+          content: prompt.generated_prompt,
+        },
+        ...chatSession.messages,
+      ];
+
   return (
     <ProtectedRoute>
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 container mx-auto px-4 py-8">
-          <div className="grid lg:grid-cols-2 gap-8 h-full">
-            {/* Prompt Details */}
-            <div className="space-y-6">
-              <Card className="h-full">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-2xl">{prompt.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Source: {prompt.source_type}
-                        {prompt.source_url && (
-                          <span className="ml-2">
-                            ({prompt.source_url})
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
+      <div className="flex h-screen">
+        <Sidebar />
+        <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-[var(--theme-border)] mt-16 lg:mt-0 bg-[var(--theme-background-secondary)]/50 backdrop-blur-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-[var(--theme-accent-text)]" />
+                </div>
+                <h1 className="text-xl font-bold truncate text-[var(--theme-text)]">{prompt.title}</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyPrompt}
+                  className="h-10 w-10 text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)] rounded-xl transition-all"
+                >
+                  {copied ? (
+                    <Check className="h-5 w-5 text-[var(--theme-accent-1)]" />
+                  ) : (
+                    <Copy className="h-5 w-5" />
+                  )}
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-[var(--theme-text-secondary)] hover:text-red-400 hover:bg-[var(--theme-background-tertiary)] rounded-xl transition-all"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl">Delete Prompt</DialogTitle>
+                      <DialogDescription className="text-[var(--theme-text-secondary)]">
+                        Are you sure you want to delete this prompt? This
+                        action cannot be undone.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-3 mt-6">
                       <Button
                         variant="outline"
-                        size="sm"
-                        onClick={handleCopyPrompt}
+                        className="h-10 bg-[var(--theme-background-tertiary)] hover:bg-[var(--theme-border-hover)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-xl"
+                        onClick={(e) => {
+                          (e.target as HTMLElement).closest(
+                            "dialog"
+                          )?.close();
+                        }}
                       >
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
+                        Cancel
                       </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Delete Prompt</DialogTitle>
-                            <DialogDescription>
-                              Are you sure you want to delete this prompt? This
-                              action cannot be undone.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <Button
-                              variant="outline"
-                              onClick={(e) => {
-                                (e.target as HTMLElement).closest(
-                                  "dialog"
-                                )?.close();
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              onClick={() => deleteMutation.mutate()}
-                              disabled={deleteMutation.isPending}
-                            >
-                              {deleteMutation.isPending
-                                ? "Deleting..."
-                                : "Delete"}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {prompt.cloudinary_images.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {prompt.cloudinary_images.map((img, idx) => (
-                        <div
-                          key={idx}
-                          className="relative h-32 overflow-hidden rounded-md"
-                        >
-                          <Image
-                            src={img.url}
-                            alt={`Source image ${idx + 1}`}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="bg-muted p-4 rounded-md whitespace-pre-wrap">
-                    {prompt.generated_prompt}
-                  </div>
-                </CardContent>
-              </Card>
+                      <Button
+                        variant="destructive"
+                        onClick={() => deleteMutation.mutate()}
+                        disabled={deleteMutation.isPending}
+                        className="h-10 rounded-xl"
+                      >
+                        {deleteMutation.isPending
+                          ? "Deleting..."
+                          : "Delete"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
-            {/* Chat Interface */}
-            <div className="flex flex-col h-full">
-              <Card className="flex flex-col h-full">
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle>Chat</CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => clearHistoryMutation.mutate()}
-                      disabled={clearHistoryMutation.isPending}
+            {/* Source images */}
+            {prompt.cloudinary_images.length > 0 && (
+              <div className="px-8 py-4 border-b border-[var(--theme-border)] bg-[var(--theme-background-secondary)]/30">
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {prompt.cloudinary_images.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className="relative w-20 h-20 flex-shrink-0 rounded-2xl overflow-hidden border border-[var(--theme-border)]"
                     >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Clear History
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col p-0">
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-4">
-                      {chatSession.messages.map((msg: ChatMessageType, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex gap-3 ${
-                            msg.role === "user" ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          {msg.role === "assistant" && (
-                            <Avatar>
-                              <AvatarFallback>AI</AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div
-                            className={`max-w-[80%] p-3 rounded-lg ${
-                              msg.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            }`}
-                          >
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
-                          </div>
-                          {msg.role === "user" && (
-                            <Avatar>
-                              <AvatarFallback>U</AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  </ScrollArea>
-                  <Separator />
-                  <div className="p-4">
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
-                      <Textarea
-                        placeholder="Type your message..."
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        className="resize-none"
-                        rows={1}
+                      <Image
+                        src={img.url}
+                        alt={`Source image ${idx + 1}`}
+                        fill
+                        className="object-cover"
                       />
-                      <Button
-                        type="submit"
-                        disabled={!message.trim() || sendMessageMutation.isPending}
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </form>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Messages */}
+            <ScrollArea className="flex-1">
+              <div className="w-full max-w-4xl mx-auto px-8 py-10">
+                {allMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex gap-5 py-7 ${
+                      idx > 0 ? "border-t border-[var(--theme-border)]/50" : ""
+                    }`}
+                  >
+                    <div className="flex-shrink-0 mt-1">
+                      {msg.role === "assistant" ? (
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center shadow-lg">
+                          <Sparkles className="h-5 w-5 text-[var(--theme-accent-text)]" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-[var(--theme-background-tertiary)] flex items-center justify-center border border-[var(--theme-border)]">
+                          <User className="h-5 w-5 text-[var(--theme-text)]" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="whitespace-pre-wrap text-[var(--theme-text)] text-lg leading-relaxed">{msg.content}</p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Input */}
+            <div className="px-8 py-6 border-t border-[var(--theme-border)] bg-[var(--theme-background-secondary)]/50 backdrop-blur-sm">
+              <div className="w-full max-w-4xl mx-auto">
+                <form onSubmit={handleSendMessage} className="relative">
+                  <Textarea
+                    placeholder="Message PromptCraft AI..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="w-full min-h-[60px] max-h-[200px] resize-y bg-[var(--theme-background-tertiary)]/70 border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0 focus:border-[var(--theme-accent-1)]/50 pr-16 rounded-2xl text-base"
+                    rows={1}
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!message.trim() || sendMessageMutation.isPending}
+                    className="absolute right-3 bottom-3 h-12 w-12 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-5 w-5" />
+                  </Button>
+                </form>
+              </div>
             </div>
           </div>
         </main>

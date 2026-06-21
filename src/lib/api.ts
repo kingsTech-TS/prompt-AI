@@ -25,13 +25,24 @@ async function fetchJson<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+
+  const authHeaders = getAuthHeaders();
+  Object.entries(authHeaders).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
+
+  if (options.headers) {
+    const optionsHeaders = new Headers(options.headers);
+    optionsHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
   const response = await fetch(`${API_BASE_URL}${url}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...options.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!response.ok) {
@@ -50,14 +61,25 @@ async function fetchFormData<T>(
   formData: FormData,
   options: RequestInit = {}
 ): Promise<T> {
+  const headers = new Headers();
+  
+  const authHeaders = getAuthHeaders();
+  Object.entries(authHeaders).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
+
+  if (options.headers) {
+    const optionsHeaders = new Headers(options.headers);
+    optionsHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
   const response = await fetch(`${API_BASE_URL}${url}`, {
     method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-      ...options.headers,
-    },
-    body: formData,
     ...options,
+    headers,
+    body: formData,
   });
 
   if (!response.ok) {

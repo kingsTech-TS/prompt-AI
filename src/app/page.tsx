@@ -5,11 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProtectedRoute from "@/components/protected-route";
-import Header from "@/components/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -22,20 +19,17 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { PaginatedPromptResponse, PromptResponse } from "@/lib/types";
 import { promptsApi } from "@/lib/api";
-import { Eye, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { Plus, Trash2, Sparkles, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
 
 export default function DashboardPage() {
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery<PaginatedPromptResponse>({
-    queryKey: ["prompts", page, limit],
+    queryKey: ["prompts"],
     queryFn: async () => {
-      return await promptsApi.getAll(page, limit);
+      return await promptsApi.getAll(1, 100);
     },
   });
 
@@ -79,153 +73,135 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold">Your Prompts</h1>
-            <Button asChild>
-              <Link href="/generate">Generate New Prompt</Link>
-            </Button>
-          </div>
-          {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-32 w-full" />
-                    <div className="flex justify-between mt-4">
-                      <Skeleton className="h-10 w-20" />
-                      <Skeleton className="h-10 w-20" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-destructive text-lg">Failed to load prompts</p>
-            </div>
-          ) : data?.prompts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-lg mb-4">
-                You haven't created any prompts yet
-              </p>
-              <Button asChild>
-                <Link href="/generate">Create your first prompt</Link>
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {data?.prompts.map((prompt: PromptResponse) => (
-                  <Card key={prompt.id}>
-                    <CardHeader>
-                      <CardTitle className="truncate">{prompt.title}</CardTitle>
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline">
-                          {prompt.source_type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelativeTime(prompt.created_at)}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {prompt.cloudinary_images.length > 0 && (
-                        <div className="mb-4 h-32 relative overflow-hidden rounded-md">
-                          <Image
-                            src={prompt.cloudinary_images[0].url}
-                            alt="Prompt preview"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <Link href={`/prompts/${prompt.id}`}>
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Link>
-                        </Button>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Delete Prompt</DialogTitle>
-                              <DialogDescription>
-                                Are you sure you want to delete this prompt? This
-                                action cannot be undone.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <Button
-                                variant="outline"
-                                onClick={(e) => {
-                                  (e.target as HTMLElement).closest(
-                                    "dialog"
-                                  )?.close();
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() => handleDelete(prompt.id)}
-                                disabled={deleteMutation.isPending}
-                              >
-                                {deleteMutation.isPending
-                                  ? "Deleting..."
-                                  : "Delete"}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+      <div className="flex h-screen">
+        <Sidebar />
+        <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
+          <div className="flex-1 flex flex-col items-center px-4 pt-20 lg:pt-8 pb-8 overflow-y-auto">
+            {isLoading ? (
+              <div className="space-y-6 w-full max-w-4xl">
+                <div className="h-10 bg-[var(--theme-background-tertiary)] rounded-xl animate-pulse" />
+                <div className="h-16 bg-[var(--theme-background-tertiary)] rounded-xl animate-pulse" />
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-24 bg-[var(--theme-background-tertiary)] rounded-xl animate-pulse"
+                    />
+                  ))}
+                </div>
               </div>
-              {data && data.total > limit && (
-                <div className="flex justify-center items-center gap-2 mt-8">
+            ) : error ? (
+              <div className="text-center">
+                <p className="text-red-400 text-lg mb-4">Failed to load prompts</p>
+              </div>
+            ) : (
+              <div className="w-full max-w-4xl">
+                <div className="text-center mb-12">
+                  <h1 className="text-4xl font-bold mb-3 text-[var(--theme-text)]">Welcome back!</h1>
+                  <p className="text-[var(--theme-text-secondary)] text-lg">Generate UI/UX prompts from URLs and images</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 mb-12 justify-center">
                   <Button
-                    variant="outline"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
+                    asChild
+                    className="h-20 px-6 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
-                    Previous
-                  </Button>
-                  <span className="text-sm">
-                    Page {page} of {Math.ceil(data.total / limit)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    disabled={page >= Math.ceil(data.total / limit)}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
+                    <Link href="/generate">
+                      <Plus className="h-6 w-6 mr-3" />
+                      <div className="flex flex-col items-start">
+                        <span className="text-lg">Create New Prompt</span>
+                        <span className="text-xs opacity-80">Start designing</span>
+                      </div>
+                    </Link>
                   </Button>
                 </div>
-              )}
-            </>
-          )}
+
+                {data?.prompts && data.prompts.length > 0 && (
+                  <div className="space-y-6">
+                    <h2 className="text-xl font-semibold text-[var(--theme-text)]">Your Recent Prompts</h2>
+                    <div className="space-y-3">
+                      {data?.prompts.map((prompt: PromptResponse) => (
+                        <div
+                          key={prompt.id}
+                          className="group flex items-center gap-4 p-6 bg-[var(--theme-background-tertiary)]/50 rounded-xl border border-[var(--theme-border)] hover:border-[var(--theme-accent-1)]/50 hover:bg-[var(--theme-background-tertiary)] transition-all"
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
+                            <Sparkles className="h-6 w-6 text-[var(--theme-accent-text)]" />
+                          </div>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            className="flex-1 justify-start p-0 h-auto hover:bg-transparent text-left"
+                          >
+                            <Link href={`/prompts/${prompt.id}`}>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg text-[var(--theme-text)] truncate">{prompt.title}</h3>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <span className="text-xs text-[var(--theme-text-secondary)] flex items-center gap-1">
+                                    {prompt.source_type === "url" ? (
+                                      <LinkIcon className="h-3 w-3" />
+                                    ) : (
+                                      <ImageIcon className="h-3 w-3" />
+                                    )}
+                                    {prompt.source_type}
+                                  </span>
+                                  <span className="text-xs text-[var(--theme-text-tertiary)]">
+                                    {formatRelativeTime(prompt.created_at)}
+                                  </span>
+                                </div>
+                              </div>
+                            </Link>
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] transition-all"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Delete Prompt</DialogTitle>
+                                <DialogDescription className="text-[var(--theme-text-secondary)]">
+                                  Are you sure you want to delete this prompt? This
+                                  action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter className="gap-3 mt-6">
+                                <Button
+                                  variant="outline"
+                                  className="h-10 bg-[var(--theme-background-tertiary)] hover:bg-[var(--theme-border-hover)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-xl"
+                                  onClick={(e) => {
+                                    (e.target as HTMLElement).closest(
+                                      "dialog"
+                                    )?.close();
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleDelete(prompt.id)}
+                                  disabled={deleteMutation.isPending}
+                                >
+                                  {deleteMutation.isPending
+                                    ? "Deleting..."
+                                    : "Delete"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </ProtectedRoute>
