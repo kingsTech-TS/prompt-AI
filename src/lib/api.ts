@@ -121,13 +121,10 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
-  resetPassword: (data: { token: string; newPassword: string }) =>
+  resetPassword: (data: ResetPasswordRequest) =>
     fetchJson<ResetPasswordResponse>("/api/v1/auth/reset-password", {
       method: "POST",
-      body: JSON.stringify({
-        token: data.token,
-        new_password: data.newPassword,
-      }),
+      body: JSON.stringify(data),
     }),
 };
 

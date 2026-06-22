@@ -114,6 +114,7 @@ export default function ProfilePage() {
                         src={user.profile_picture_url}
                         alt={user.username}
                         fill
+                        unoptimized={true}
                         className="object-cover"
                       />
                     ) : (

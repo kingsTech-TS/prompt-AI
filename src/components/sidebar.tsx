@@ -132,12 +132,13 @@ export default function Sidebar() {
           className="w-full justify-start gap-3 p-2 text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)] hover:text-[var(--theme-text)] transition-colors rounded-xl"
         >
           <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
-            <div className="w-10 h-10 rounded-full bg-[var(--theme-background-tertiary)] flex items-center justify-center overflow-hidden border border-[var(--theme-border)]">
+            <div className="relative w-10 h-10 rounded-full bg-[var(--theme-background-tertiary)] flex items-center justify-center overflow-hidden border border-[var(--theme-border)] flex-shrink-0">
               {user?.profile_picture_url ? (
                 <Image
                   src={user.profile_picture_url}
                   alt={user.username}
                   fill
+                  unoptimized={true}
                   className="object-cover"
                 />
               ) : (
@@ -194,7 +195,7 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <div
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-72 transform transition-transform duration-200 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 transform transition-transform duration-200 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
