@@ -7,10 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeSelector } from "@/components/theme-selector";
-import { Plus, LogOut, Menu, X, Sparkles } from "lucide-react";
+import { Plus, LogOut, Menu, X, Sparkles, User } from "lucide-react";
 import { removeToken } from "@/lib/auth";
-import { promptsApi } from "@/lib/api";
-import { PaginatedPromptResponse, PromptResponse } from "@/lib/types";
+import { promptsApi, authApi } from "@/lib/api";
+import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
+import Image from "next/image";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -22,6 +23,11 @@ export default function Sidebar() {
     queryFn: async () => {
       return await promptsApi.getAll(1, 100);
     },
+  });
+
+  const { data: user } = useQuery<UserResponse>({
+    queryKey: ["user"],
+    queryFn: () => authApi.getMe(),
   });
 
   const groupPromptsByDate = (prompts: PromptResponse[]) => {
@@ -121,12 +127,32 @@ export default function Sidebar() {
       </div>
       <div className="p-4 border-t border-[var(--theme-border)]">
         <Button
+          asChild
           variant="ghost"
-          className="w-full justify-start gap-2 text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)] hover:text-[var(--theme-text)] transition-colors"
-          onClick={handleLogout}
+          className="w-full justify-start gap-3 p-2 text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)] hover:text-[var(--theme-text)] transition-colors rounded-xl"
         >
-          <LogOut className="h-4 w-4" />
-          Log out
+          <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
+            <div className="w-10 h-10 rounded-full bg-[var(--theme-background-tertiary)] flex items-center justify-center overflow-hidden border border-[var(--theme-border)]">
+              {user?.profile_picture_url ? (
+                <Image
+                  src={user.profile_picture_url}
+                  alt={user.username}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <User className="h-5 w-5" />
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-semibold text-[var(--theme-text)]">
+                {user?.username || "User"}
+              </div>
+              <div className="text-xs text-[var(--theme-text-tertiary)]">
+                {user?.email}
+              </div>
+            </div>
+          </Link>
         </Button>
       </div>
     </div>
@@ -135,12 +161,12 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[#212121] p-3 border-b border-[#2f2f2f]">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--theme-background-secondary)] p-3 border-b border-[var(--theme-border)]">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-[#2f2f2f]"
+            className="text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] rounded-lg"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -149,9 +175,9 @@ export default function Sidebar() {
               <Menu className="h-5 w-5" />
             )}
           </Button>
-          <Link href="/" className="font-bold text-lg flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-black" />
+          <Link href="/" className="font-bold text-lg flex items-center gap-2 text-[var(--theme-text)]">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-[var(--theme-accent-text)]" />
             </div>
             PromptCraft
           </Link>

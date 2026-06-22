@@ -4,6 +4,10 @@ import {
   UserResponse,
   UserWithToken,
   Token,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   PromptResponse,
   PaginatedPromptResponse,
   ChatSessionResponse,
@@ -107,6 +111,24 @@ export const authApi = {
     }),
 
   getMe: () => fetchJson<UserResponse>("/api/v1/auth/me"),
+
+  uploadProfilePicture: (formData: FormData) =>
+    fetchFormData<UserResponse>("/api/v1/auth/profile-picture", formData),
+
+  forgotPassword: (data: ForgotPasswordRequest) =>
+    fetchJson<ForgotPasswordResponse>("/api/v1/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    fetchJson<ResetPasswordResponse>("/api/v1/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        token: data.token,
+        new_password: data.newPassword,
+      }),
+    }),
 };
 
 // Prompts API

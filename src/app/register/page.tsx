@@ -63,16 +63,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#212121]">
-      <Card className="w-full max-w-md bg-[#2f2f2f] border-[#3f3f3f]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
+      <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-[var(--theme-border)]">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-black" />
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-[var(--theme-accent-text)]" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-white">Create your account</CardTitle>
-          <CardDescription className="text-gray-400">
+          <CardTitle className="text-2xl text-[var(--theme-text)]">Create your account</CardTitle>
+          <CardDescription className="text-[var(--theme-text-secondary)]">
             Create a new account to get started
           </CardDescription>
         </CardHeader>
@@ -84,12 +84,12 @@ export default function RegisterPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Username</FormLabel>
+                    <FormLabel className="text-[var(--theme-text-secondary)]">Username</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="johndoe"
                         {...field}
-                        className="bg-[#212121] border-[#3f3f3f] text-white placeholder:text-gray-500 focus:ring-0 focus-visible:ring-0"
+                        className="bg-[var(--theme-background)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0"
                       />
                     </FormControl>
                     <FormMessage className="text-red-400" />
@@ -101,13 +101,13 @@ export default function RegisterPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Email</FormLabel>
+                    <FormLabel className="text-[var(--theme-text-secondary)]">Email</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
                         placeholder="email@example.com"
                         {...field}
-                        className="bg-[#212121] border-[#3f3f3f] text-white placeholder:text-gray-500 focus:ring-0 focus-visible:ring-0"
+                        className="bg-[var(--theme-background)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0"
                       />
                     </FormControl>
                     <FormMessage className="text-red-400" />
@@ -119,13 +119,13 @@ export default function RegisterPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Password</FormLabel>
+                    <FormLabel className="text-[var(--theme-text-secondary)]">Password</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         placeholder="••••••••"
                         {...field}
-                        className="bg-[#212121] border-[#3f3f3f] text-white placeholder:text-gray-500 focus:ring-0 focus-visible:ring-0"
+                        className="bg-[var(--theme-background)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0"
                       />
                     </FormControl>
                     <FormMessage className="text-red-400" />
@@ -134,14 +134,14 @@ export default function RegisterPage() {
               />
               <Button
                 type="submit"
-                className="w-full h-12 bg-white text-black hover:bg-gray-200 font-medium"
+                className="w-full h-12 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] text-[var(--theme-accent-text)] font-medium hover:brightness-110"
                 disabled={isLoading}
               >
                 {isLoading ? "Registering..." : "Register"}
               </Button>
-              <p className="text-center text-sm text-gray-400">
+              <p className="text-center text-sm text-[var(--theme-text-secondary)]">
                 Already have an account?{" "}
-                <Link href="/login" className="text-white hover:underline">
+                <Link href="/login" className="text-[var(--theme-text)] hover:underline">
                   Login
                 </Link>
               </p>

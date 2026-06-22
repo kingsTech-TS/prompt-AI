@@ -2,6 +2,7 @@
 interface UserBase {
   email: string;
   username: string;
+  profile_picture_url?: string;
 }
 
 interface UserCreate extends UserBase {
@@ -26,6 +27,25 @@ interface Token {
 
 interface UserWithToken extends UserResponse {
   access_token: string;
+}
+
+// Forgot Password Types
+interface ForgotPasswordRequest {
+  email: string;
+}
+
+interface ForgotPasswordResponse {
+  message: string;
+}
+
+// Reset Password Types
+interface ResetPasswordRequest {
+  token: string;
+  new_password: string;
+}
+
+interface ResetPasswordResponse {
+  message: string;
 }
 
 // Prompt Types
@@ -85,6 +105,10 @@ export type {
   UserResponse,
   Token,
   UserWithToken,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   ImageData,
   SourceType,
   PromptResponse,
