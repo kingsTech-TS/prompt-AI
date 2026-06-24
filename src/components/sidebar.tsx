@@ -7,11 +7,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeSelector } from "@/components/theme-selector";
-import { Plus, LogOut, Menu, X, Sparkles, User } from "lucide-react";
+import { Plus, LogOut, Menu, X, Sparkles, User, Terminal } from "lucide-react";
 import { removeToken } from "@/lib/auth";
 import { promptsApi, authApi } from "@/lib/api";
 import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
 import Image from "next/image";
+
 
 export default function Sidebar() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function Sidebar() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-[var(--theme-accent-text)]" />
+              <Terminal className="h-5 w-5 text-[var(--theme-accent-text)]" />
             </div>
             <span className="text-xl font-bold text-[var(--theme-text)]">PromptCraft</span>
           </div>
@@ -178,7 +179,7 @@ export default function Sidebar() {
           </Button>
           <Link href="/" className="font-bold text-lg flex items-center gap-2 text-[var(--theme-text)]">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-[var(--theme-accent-text)]" />
+              <Terminal className="h-4 w-4 text-[var(--theme-accent-text)]" />
             </div>
             PromptCraft
           </Link>

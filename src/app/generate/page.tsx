@@ -103,121 +103,215 @@ export default function GeneratePage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen">
+      <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
-          <div className="flex-1 flex flex-col items-center justify-center px-4 pt-20 lg:pt-0">
-            <div className="w-full max-w-3xl">
-              <div className="text-center mb-10">
-                <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center shadow-lg">
-                    <Sparkles className="h-8 w-8 text-[var(--theme-accent-text)]" />
-                  </div>
-                </div>
-                <h1 className="text-4xl font-bold mb-3 text-[var(--theme-text)]">Generate New Prompt</h1>
-                <p className="text-[var(--theme-text-secondary)] text-lg">
-                  Enter a website URL or upload images to get started
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* URL Input */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[var(--theme-text-secondary)] font-medium">
-                    <LinkIcon className="h-5 w-5" />
-                    <span>Website URL</span>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      type="url"
-                      placeholder="https://example.com"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      className="h-14 bg-[var(--theme-background-tertiary)]/70 border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0 focus:border-[var(--theme-accent-1)]/50 rounded-xl text-base"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-[var(--theme-border)]" />
-                  <span className="text-[var(--theme-text-tertiary)] text-sm font-medium">or</span>
-                  <div className="flex-1 h-px bg-[var(--theme-border)]" />
-                </div>
-
-                {/* Image Upload */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[var(--theme-text-secondary)] font-medium">
-                    <ImageIcon className="h-5 w-5" />
-                    <span>Upload Images</span>
-                  </div>
-                  <div
-                    className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all ${
-                      isDragOver 
-                        ? "border-[var(--theme-accent-1)] bg-[var(--theme-background-tertiary)]/70" 
-                        : "border-[var(--theme-border)] hover:border-[var(--theme-border-hover)] hover:bg-[var(--theme-background-tertiary)]/30"
-                    }`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <Upload className={`h-12 w-12 mx-auto mb-4 transition-colors ${isDragOver ? "text-[var(--theme-accent-1)]" : "text-[var(--theme-text-tertiary)]"}`} />
-                    <p className={`text-lg font-medium ${isDragOver ? "text-[var(--theme-accent-1)]" : "text-[var(--theme-text-secondary)]"}`}>
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-[var(--theme-text-tertiary)] text-sm mt-1">
-                      PNG, JPG, GIF up to 10MB
-                    </p>
-                  </div>
-
-                  {imagePreviews.length > 0 && (
-                    <div className="flex flex-wrap gap-4 mt-4">
-                      {imagePreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <Image
-                            src={preview}
-                            alt={`Preview ${index + 1}`}
-                            width={120}
-                            height={120}
-                            className="w-28 h-28 object-cover rounded-xl border border-[var(--theme-border)]"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="absolute -top-2 -right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                            onClick={() => removeImage(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+        <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)] overflow-y-auto">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 md:px-8 mt-16 lg:mt-0">
+            <div className="w-full max-w-6xl">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                
+                {/* Left Side: Elegant Guide & Features */}
+                <div className="lg:col-span-5 flex flex-col justify-between p-8 rounded-3xl bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] relative overflow-hidden group">
+                  {/* Glowing background shapes for premium look */}
+                  <div 
+                    className="absolute -top-40 -left-40 w-80 h-80 rounded-full blur-3xl transition-all duration-700" 
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--theme-accent-1) 10%, transparent)' }}
+                  />
+                  <div 
+                    className="absolute -bottom-40 -right-40 w-80 h-80 rounded-full blur-3xl transition-all duration-700" 
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--theme-accent-2) 10%, transparent)' }}
+                  />
+                  
+                  <div className="relative z-10 space-y-8">
+                    <div>
+                      <div 
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-[var(--theme-accent-1)] mb-4 uppercase tracking-wider border"
+                        style={{ 
+                          backgroundColor: 'color-mix(in srgb, var(--theme-accent-1) 10%, transparent)',
+                          borderColor: 'color-mix(in srgb, var(--theme-accent-1) 20%, transparent)'
+                        }}
+                      >
+                        <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                        AI-Powered Analysis
+                      </div>
+                      <h1 className="text-4xl font-extrabold text-[var(--theme-text)] tracking-tight leading-tight">
+                        Generate Premium <br />
+                        <span className="bg-gradient-to-r from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] bg-clip-text text-transparent">
+                          UI/UX Prompts
+                        </span>
+                      </h1>
+                      <p className="text-[var(--theme-text-secondary)] mt-4 text-base leading-relaxed">
+                        Transform reference designs or live websites into detailed, copy-pasteable prompts. Perfect for v0, Claude, and ChatGPT.
+                      </p>
                     </div>
-                  )}
+
+                    <div className="space-y-6">
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--theme-background-tertiary)] flex items-center justify-center border border-[var(--theme-border)] flex-shrink-0 text-[var(--theme-accent-1)] shadow-sm">
+                          <span className="font-bold text-sm">1</span>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-[var(--theme-text)] text-sm">Enter a Website URL</h3>
+                          <p className="text-xs text-[var(--theme-text-secondary)] mt-1">Provide any live website link to extract layout schemas, components, and styling tokens.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--theme-background-tertiary)] flex items-center justify-center border border-[var(--theme-border)] flex-shrink-0 text-[var(--theme-accent-1)] shadow-sm">
+                          <span className="font-bold text-sm">2</span>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-[var(--theme-text)] text-sm">Or Upload Screenshots</h3>
+                          <p className="text-xs text-[var(--theme-text-secondary)] mt-1">Drag and drop screenshots to inspect typography, layout hierarchy, and style elements.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--theme-background-tertiary)] flex items-center justify-center border border-[var(--theme-border)] flex-shrink-0 text-[var(--theme-accent-1)] shadow-sm">
+                          <span className="font-bold text-sm">3</span>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-[var(--theme-text)] text-sm">Get AI-Generated Prompts</h3>
+                          <p className="text-xs text-[var(--theme-text-secondary)] mt-1">Obtain structure-rich UI prompts, component definitions, and Tailwind code blueprints instantly.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative z-10 pt-8 border-t border-[var(--theme-border)] mt-8">
+                    <p className="text-xs text-[var(--theme-text-tertiary)]">
+                      Supported file formats: PNG, JPG, GIF up to 10MB each.
+                    </p>
+                  </div>
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-14 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-bold gap-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
-                  disabled={generateMutation.isPending}
-                >
-                  {generateMutation.isPending ? (
-                    <span className="animate-pulse">Generating...</span>
-                  ) : (
-                    <>
-                      Generate Prompt
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </form>
+                {/* Right Side: Form Container */}
+                <div className="lg:col-span-7">
+                  <div className="h-full p-8 lg:p-10 rounded-3xl bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] shadow-2xl relative overflow-hidden">
+                    <form onSubmit={handleSubmit} className="space-y-6 h-full flex flex-col justify-between">
+                      <div className="space-y-6">
+                        {/* URL Section */}
+                        <div className="space-y-3">
+                          <label className="flex items-center gap-2 text-sm font-semibold text-[var(--theme-text-secondary)] uppercase tracking-wider">
+                            <LinkIcon className="h-4 w-4 text-[var(--theme-accent-1)]" />
+                            <span>Analyze Live Website</span>
+                          </label>
+                          <div className="relative group">
+                            <Input
+                              type="url"
+                              placeholder="https://example.com"
+                              value={url}
+                              onChange={(e) => setUrl(e.target.value)}
+                              className="h-14 bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-1 focus:ring-[var(--theme-accent-1)] focus-visible:ring-0 focus:border-[var(--theme-accent-1)] rounded-2xl text-base px-5 shadow-inner transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 py-2">
+                          <div className="flex-1 h-px bg-[var(--theme-border)]" />
+                          <span className="text-[var(--theme-text-tertiary)] text-xs font-bold uppercase tracking-wider">Or</span>
+                          <div className="flex-1 h-px bg-[var(--theme-border)]" />
+                        </div>
+
+                        {/* Drag and Drop Section */}
+                        <div className="space-y-3">
+                          <label className="flex items-center gap-2 text-sm font-semibold text-[var(--theme-text-secondary)] uppercase tracking-wider">
+                            <ImageIcon className="h-4 w-4 text-[var(--theme-accent-1)]" />
+                            <span>Upload Reference Images</span>
+                          </label>
+                          <div
+                            className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 relative ${
+                              isDragOver 
+                                ? "border-[var(--theme-accent-1)] bg-[var(--theme-background-tertiary)]" 
+                                : "border-[var(--theme-border)] hover:border-[var(--theme-border-hover)] hover:bg-[var(--theme-background-tertiary)] bg-[var(--theme-background-tertiary)]"
+                            }`}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                          >
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handleImageChange}
+                              className="hidden"
+                            />
+                            <div className="flex flex-col items-center justify-center">
+                              <div 
+                                className="w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-colors text-[var(--theme-accent-1)]"
+                                style={{ backgroundColor: 'color-mix(in srgb, var(--theme-accent-1) 10%, transparent)' }}
+                              >
+                                <Upload className="h-6 w-6" />
+                              </div>
+                              <p className={`text-base font-semibold ${isDragOver ? "text-[var(--theme-accent-1)]" : "text-[var(--theme-text-secondary)]"}`}>
+                                {isDragOver ? "Drop files here" : "Click to upload or drag & drop"}
+                              </p>
+                              <p className="text-[var(--theme-text-tertiary)] text-xs mt-1">
+                                Drag and drop screenshots directly into this area
+                              </p>
+                            </div>
+                          </div>
+
+                          {imagePreviews.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mt-4 max-h-40 overflow-y-auto p-1">
+                              {imagePreviews.map((preview, index) => (
+                                <div key={index} className="relative group rounded-xl overflow-hidden shadow-md border border-[var(--theme-border)] bg-[var(--theme-background-tertiary)] flex-shrink-0">
+                                  <Image
+                                    src={preview}
+                                    alt={`Preview ${index + 1}`}
+                                    width={80}
+                                    height={80}
+                                    className="w-20 h-20 object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="icon"
+                                      className="h-8 w-8 rounded-lg shadow-lg hover:scale-105 transition-transform"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeImage(index);
+                                      }}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-6">
+                        <Button
+                          type="submit"
+                          className="w-full h-14 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-bold gap-3 text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                          disabled={generateMutation.isPending}
+                        >
+                          {generateMutation.isPending ? (
+                            <div className="flex items-center gap-2 justify-center">
+                              <span className="w-2 h-2 rounded-full bg-[var(--theme-accent-text)] animate-bounce" />
+                              <span className="w-2 h-2 rounded-full bg-[var(--theme-accent-text)] animate-bounce [animation-delay:0.2s]" />
+                              <span className="w-2 h-2 rounded-full bg-[var(--theme-accent-text)] animate-bounce [animation-delay:0.4s]" />
+                              <span className="ml-1">Analyzing and Generating...</span>
+                            </div>
+                          ) : (
+                            <>
+                              Generate Custom Prompt
+                              <ArrowRight className="h-5 w-5 animate-pulse" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </main>

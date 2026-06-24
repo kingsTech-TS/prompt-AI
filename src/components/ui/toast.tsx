@@ -37,13 +37,13 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = "ToastViewport"
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-2 overflow-hidden rounded-md border p-4 pr-6 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-2 overflow-hidden rounded-2xl border p-4 pr-6 shadow-2xl transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        default: "border-[var(--theme-border)] bg-[var(--theme-background-secondary)] backdrop-blur-md text-[var(--theme-text)]",
         destructive:
-          "destructive group border-destructive bg-destructive text-destructive-foreground",
+          "destructive group border-red-500/40 bg-red-950/95 backdrop-blur-md text-red-50",
       },
     },
     defaultVariants: {
@@ -54,11 +54,24 @@ const toastVariants = cva(
 
 const Toast = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof toastVariants> & {
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+  }
+>(({ className, variant, open, onOpenChange, ...props }, ref) => {
+  React.useEffect(() => {
+    if (open && onOpenChange) {
+      const timer = setTimeout(() => {
+        onOpenChange(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [open, onOpenChange])
+
   return (
     <div
       ref={ref}
+      data-state={open ? "open" : "closed"}
       className={cn(toastVariants({ variant }), className)}
       {...props}
     />
