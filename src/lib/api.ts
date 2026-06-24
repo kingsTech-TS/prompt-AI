@@ -15,7 +15,7 @@ import {
   ChatMessageRequest,
 } from "@/lib/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://prompt-ai-psi-blush.vercel.app";
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -161,5 +161,27 @@ export const chatApi = {
   clearHistory: (promptId: string) =>
     fetchJson<ChatSessionResponse>(`/api/v1/chat/${promptId}/history`, {
       method: "DELETE",
+    }),
+};
+
+// Admin API
+export const adminApi = {
+  getUsers: () => fetchJson<UserResponse[]>("/api/v1/admin/users"),
+
+  updateUser: (userId: string, data: { role?: "user" | "admin"; subscription?: "free" | "pro"; max_prompts?: number }) =>
+    fetchJson<UserResponse>(`/api/v1/admin/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteUser: (userId: string) =>
+    fetchJson<{ message: string }>(`/api/v1/admin/users/${userId}`, {
+      method: "DELETE",
+    }),
+
+  sendBulkEmail: (data: { subject: string; body: string; target: "all" | "free" | "pro" }) =>
+    fetchJson<{ message: string; task_id?: string }>(`/api/v1/admin/bulk-email`, {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 };

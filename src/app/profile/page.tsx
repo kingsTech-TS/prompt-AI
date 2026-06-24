@@ -148,6 +148,21 @@ export default function ProfilePage() {
                       : "-"}
                   </div>
                 </div>
+                {user && user.role !== "admin" && (
+                  <div className="bg-[var(--theme-background-tertiary)] rounded-xl p-4 border border-[var(--theme-border)] flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-[var(--theme-text-tertiary)] mb-1">Prompts Used</div>
+                      <div className={`font-semibold ${user.prompts_used >= user.max_prompts ? 'text-red-500' : 'text-[var(--theme-text)]'}`}>
+                        {user.prompts_used} / {user.max_prompts}
+                      </div>
+                    </div>
+                    {user.prompts_used >= user.max_prompts && (
+                      <span className="text-xs font-semibold px-3 py-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full">
+                        Limit Reached
+                      </span>
+                    )}
+                  </div>
+                )}
                 <Button
                   variant="ghost"
                   className="w-full h-12 text-red-400 hover:text-red-400 hover:bg-red-400/10"

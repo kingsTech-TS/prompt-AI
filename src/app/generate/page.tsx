@@ -2,13 +2,13 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import ProtectedRoute from "@/components/protected-route";
 import Sidebar from "@/components/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { promptsApi } from "@/lib/api";
+import { promptsApi, authApi } from "@/lib/api";
 import { Upload, X, ArrowRight, Link as LinkIcon, Image as ImageIcon, Sparkles } from "lucide-react";
 import Image from "next/image";
 
@@ -20,6 +20,11 @@ export default function GeneratePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
+
+  const { data: user } = useQuery({
+    queryKey: ["user"],
+    queryFn: () => authApi.getMe(),
+  });
 
   const generateMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -33,12 +38,20 @@ export default function GeneratePage() {
       router.push(`/prompts/${data.id}`);
     },
     onError: (error: any) => {
-      toast({
-        title: "Failed to generate prompt",
-        description:
-          error.message || "An error occurred while generating the prompt",
-        variant: "destructive",
-      });
+      if (error.message && (error.message.includes("403") || error.message.toLowerCase().includes("limit") || error.message.toLowerCase().includes("forbidden"))) {
+        toast({
+          title: "Limit Reached",
+          description: "You have used all your available prompts. Please upgrade to Pro to generate more.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Failed to generate prompt",
+          description:
+            error.message || "An error occurred while generating the prompt",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -289,8 +302,8 @@ export default function GeneratePage() {
                       <div className="pt-6">
                         <Button
                           type="submit"
-                          className="w-full h-14 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-bold gap-3 text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
-                          disabled={generateMutation.isPending}
+                          className="w-full h-14 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-bold gap-3 text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={generateMutation.isPending || (user ? user.role === "admin" || user.prompts_used >= user.max_prompts : false)}
                         >
                           {generateMutation.isPending ? (
                             <div className="flex items-center gap-2 justify-center">

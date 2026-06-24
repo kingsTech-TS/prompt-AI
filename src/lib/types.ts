@@ -16,8 +16,24 @@ interface UserLogin {
 
 interface UserResponse extends UserBase {
   id: string;
+  role: "user" | "admin";
+  subscription: "free" | "pro";
+  max_prompts: number;
+  prompts_used: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminUpdateUserRequest {
+  role?: "user" | "admin";
+  subscription?: "free" | "pro";
+  max_prompts?: number;
+}
+
+export interface BulkEmailRequest {
+  subject: string;
+  body: string;
+  target: "all" | "free" | "pro";
 }
 
 interface Token {

@@ -80,6 +80,18 @@ export default function Sidebar() {
             New Prompt
           </Link>
         </Button>
+        {user?.role === "admin" && (
+          <Button
+            asChild
+            variant="outline"
+            className="w-full justify-start gap-2 mt-3 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-sm transition-all"
+          >
+            <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
+              <User className="h-5 w-5" />
+              Admin Dashboard
+            </Link>
+          </Button>
+        )}
       </div>
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full px-3 py-4">
