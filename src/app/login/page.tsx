@@ -57,7 +57,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">
       {/* ── Left hero panel ─────────────────────────────────────────── */}
       <div
-        className="relative lg:w-[55%] flex flex-col justify-between p-8 sm:p-12 overflow-hidden"
+        className="hidden lg:flex relative lg:w-[55%] flex-col justify-between p-8 sm:p-12 overflow-hidden"
         style={{
           background:
             "linear-gradient(135deg, #2d0a6e 0%, #4b1299 40%, #7c3abf 70%, #9b59d0 100%)",
@@ -181,7 +181,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right form panel ─────────────────────────────────────────── */}
-      <div className="lg:w-[45%] flex items-center justify-center p-6 sm:p-10 bg-[var(--theme-background)]">
+      <div className="flex-1 lg:flex-none lg:w-[45%] min-h-screen lg:min-h-0 flex items-center justify-center p-6 sm:p-10 bg-[var(--theme-background)]">
         <div className="w-full max-w-[400px] animate-in fade-in slide-in-from-right-4 duration-500">
           {/* Mobile logo (hidden on desktop) */}
           <div className="flex justify-center mb-8 lg:hidden">
