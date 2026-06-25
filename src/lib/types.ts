@@ -70,7 +70,74 @@ interface ImageData {
   public_id: string;
 }
 
-type SourceType = "url" | "image" | "both";
+export interface TechItem {
+  name: string;
+  category: string;
+}
+
+export type CollectionType = "frontend" | "backend" | "data" | "custom";
+
+export interface CollectionResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  type: CollectionType;
+  technologies: TechItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CollectionCreate {
+  name: string;
+  type: CollectionType;
+  technologies: TechItem[];
+}
+
+export interface SubCollectionCreate {
+  name: string;
+  collection_ids: string[];
+}
+
+export interface SubCollectionResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  collection_ids: string[];
+  collections?: CollectionResponse[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnvVariable {
+  key: string;
+  description: string;
+  example: string;
+}
+
+export interface DbSchemaField {
+  name: string;
+  type: string;
+  required: boolean;
+}
+
+export interface DbSchema {
+  name: string;
+  fields: DbSchemaField[];
+}
+
+export interface IdeaPhase {
+  phase_number: number;
+  title: string;
+  content: string;
+}
+
+export interface IdeaGenerateRequest {
+  idea: string;
+  collection_id?: string;
+  output_mode: "full" | "phased";
+}
+
+type SourceType = "url" | "image" | "both" | "idea";
 
 interface PromptResponse {
   id: string;
@@ -81,6 +148,16 @@ interface PromptResponse {
   cloudinary_images: ImageData[];
   generated_prompt: string;
   chat_session_id: string;
+  
+  // Idea-specific fields
+  idea_text?: string;
+  recommended_stack?: Record<string, string[]>;
+  full_prompt?: string;
+  phases?: IdeaPhase[];
+  env_variables?: EnvVariable[];
+  db_schemas?: DbSchema[];
+  collection_id?: string;
+
   created_at: string;
   updated_at: string;
 }

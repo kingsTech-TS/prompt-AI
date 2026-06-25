@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeSelector } from "@/components/theme-selector";
-import { Plus, LogOut, Menu, X, Sparkles, User, Terminal } from "lucide-react";
+import { Plus, LogOut, Menu, X, Sparkles, User, Terminal, Lightbulb, FolderOpen } from "lucide-react";
 import { removeToken } from "@/lib/auth";
 import { promptsApi, authApi } from "@/lib/api";
 import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
@@ -80,6 +80,26 @@ export default function Sidebar() {
             New Prompt
           </Link>
         </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="w-full justify-start gap-2 mt-3 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-sm transition-all"
+        >
+          <Link href="/idea" onClick={() => setIsMobileMenuOpen(false)}>
+            <Lightbulb className="h-5 w-5 text-yellow-400" />
+            Idea Generator
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="w-full justify-start gap-2 mt-3 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-sm transition-all"
+        >
+          <Link href="/collections" onClick={() => setIsMobileMenuOpen(false)}>
+            <FolderOpen className="h-5 w-5 text-blue-400" />
+            Collections
+          </Link>
+        </Button>
         {user?.role === "admin" && (
           <Button
             asChild
@@ -118,13 +138,17 @@ export default function Sidebar() {
                           key={prompt.id}
                           href={`/prompts/${prompt.id}`}
                           onClick={() => setIsMobileMenuOpen(false)}
-                          className={`flex items-center gap-2 px-3 py-3 rounded-lg text-sm transition-all ${
+                          className={`flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm transition-all ${
                             pathname === `/prompts/${prompt.id}`
                               ? "bg-[var(--theme-background-tertiary)] text-[var(--theme-text)]"
                               : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)] hover:text-[var(--theme-text)]"
                           }`}
                         >
-                          <div className="flex-shrink-0 w-2 h-2 rounded-full bg-[var(--theme-text-tertiary)]" />
+                          {prompt.source_type === "idea" ? (
+                            <Lightbulb className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 text-[var(--theme-accent-1)] flex-shrink-0" />
+                          )}
                           <span className="flex-1 truncate">
                             {prompt.title}
                           </span>

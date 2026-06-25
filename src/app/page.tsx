@@ -19,7 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { PaginatedPromptResponse, PromptResponse } from "@/lib/types";
 import { promptsApi } from "@/lib/api";
-import { Plus, Trash2, Sparkles, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Sparkles, Link as LinkIcon, Image as ImageIcon, Lightbulb } from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -109,8 +109,21 @@ export default function DashboardPage() {
                     <Link href="/generate">
                       <Plus className="h-6 w-6 mr-3" />
                       <div className="flex flex-col items-start">
-                        <span className="text-lg">Create New Prompt</span>
-                        <span className="text-xs opacity-80">Start designing</span>
+                        <span className="text-lg">UI/UX Prompt Generator</span>
+                        <span className="text-xs opacity-80">From URL or Screenshots</span>
+                      </div>
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="h-20 px-6 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
+                  >
+                    <Link href="/idea">
+                      <Lightbulb className="h-6 w-6 mr-3 text-yellow-400 animate-pulse" />
+                      <div className="flex flex-col items-start">
+                        <span className="text-lg">Idea Prompt Generator</span>
+                        <span className="text-xs text-[var(--theme-text-secondary)]">From Application Idea</span>
                       </div>
                     </Link>
                   </Button>
@@ -126,7 +139,11 @@ export default function DashboardPage() {
                           className="group flex items-center gap-4 p-6 bg-[var(--theme-background-tertiary)]/50 rounded-xl border border-[var(--theme-border)] hover:border-[var(--theme-accent-1)]/50 hover:bg-[var(--theme-background-tertiary)] transition-all"
                         >
                           <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
-                            <Sparkles className="h-6 w-6 text-[var(--theme-accent-text)]" />
+                            {prompt.source_type === "idea" ? (
+                              <Lightbulb className="h-6 w-6 text-[var(--theme-accent-text)]" />
+                            ) : (
+                              <Sparkles className="h-6 w-6 text-[var(--theme-accent-text)]" />
+                            )}
                           </div>
                           <Button
                             asChild
@@ -140,6 +157,8 @@ export default function DashboardPage() {
                                   <span className="text-xs text-[var(--theme-text-secondary)] flex items-center gap-1">
                                     {prompt.source_type === "url" ? (
                                       <LinkIcon className="h-3 w-3" />
+                                    ) : prompt.source_type === "idea" ? (
+                                      <Lightbulb className="h-3 w-3 text-yellow-400" />
                                     ) : (
                                       <ImageIcon className="h-3 w-3" />
                                     )}

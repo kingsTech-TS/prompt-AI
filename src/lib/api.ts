@@ -13,6 +13,11 @@ import {
   ChatSessionResponse,
   ChatMessage,
   ChatMessageRequest,
+  CollectionCreate,
+  CollectionResponse,
+  SubCollectionCreate,
+  SubCollectionResponse,
+  IdeaGenerateRequest,
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://prompt-ai-psi-blush.vercel.app";
@@ -133,6 +138,12 @@ export const promptsApi = {
   generate: (formData: FormData) =>
     fetchFormData<PromptResponse>("/api/v1/prompts/generate", formData),
 
+  generateIdea: (data: IdeaGenerateRequest) =>
+    fetchJson<PromptResponse>("/api/v1/prompts/generate-idea", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   getAll: (page = 1, limit = 10) =>
     fetchJson<PaginatedPromptResponse>(
       `/api/v1/prompts?page=${page}&limit=${limit}`
@@ -160,6 +171,52 @@ export const chatApi = {
 
   clearHistory: (promptId: string) =>
     fetchJson<ChatSessionResponse>(`/api/v1/chat/${promptId}/history`, {
+      method: "DELETE",
+    }),
+};
+
+// Collections API
+export const collectionsApi = {
+  create: (data: CollectionCreate) =>
+    fetchJson<CollectionResponse>("/api/v1/collections/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getAll: () =>
+    fetchJson<CollectionResponse[]>("/api/v1/collections/"),
+
+  getById: (id: string) =>
+    fetchJson<CollectionResponse>(`/api/v1/collections/${id}`),
+
+  update: (id: string, data: CollectionCreate) =>
+    fetchJson<CollectionResponse>(`/api/v1/collections/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetchJson<{ message: string }>(`/api/v1/collections/${id}`, {
+      method: "DELETE",
+    }),
+
+  createSub: (data: SubCollectionCreate) =>
+    fetchJson<SubCollectionResponse>("/api/v1/collections/sub/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getAllSub: () =>
+    fetchJson<SubCollectionResponse[]>("/api/v1/collections/sub/"),
+
+  updateSub: (id: string, data: SubCollectionCreate) =>
+    fetchJson<SubCollectionResponse>(`/api/v1/collections/sub/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteSub: (id: string) =>
+    fetchJson<{ message: string }>(`/api/v1/collections/sub/${id}`, {
       method: "DELETE",
     }),
 };

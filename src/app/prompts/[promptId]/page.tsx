@@ -35,6 +35,8 @@ export default function PromptDetailPage() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("full");
+  const [activePhaseIndex, setActivePhaseIndex] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -353,7 +355,7 @@ export default function PromptDetailPage() {
                           <div className="flex items-center gap-1.5 mb-1.5 px-1">
                             <span className="text-[10px] font-bold text-[var(--theme-accent-1)] uppercase tracking-widest flex items-center gap-1">
                               <Sparkles className="h-3 w-3 animate-pulse" />
-                              Generated UI/UX Prompt
+                              {prompt.source_type === "idea" ? "Generated Idea Architecture & Prompt" : "Generated UI/UX Prompt"}
                             </span>
                           </div>
                         )}
@@ -366,7 +368,7 @@ export default function PromptDetailPage() {
                           }`}
                         >
                           {/* Copy button for AI messages */}
-                          {isAssistant && (
+                          {isAssistant && !(isSystemPrompt && prompt.source_type === "idea") && (
                             <button
                               onClick={() => copyToClipboard(msg.content)}
                               className="absolute right-2.5 top-2.5 p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)] opacity-0 group-hover/msg:opacity-100 transition-all"
@@ -376,7 +378,253 @@ export default function PromptDetailPage() {
                             </button>
                           )}
 
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {isSystemPrompt && prompt.source_type === "idea" ? (
+                            <div className="w-full space-y-4 py-2">
+                              {/* Main tabs selector */}
+                              <div className="flex flex-wrap gap-1.5 border-b border-[var(--theme-border)] pb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("full")}
+                                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                    activeTab === "full"
+                                      ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
+                                      : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
+                                  }`}
+                                >
+                                  Full Prompt
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("stack")}
+                                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                    activeTab === "stack"
+                                      ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
+                                      : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
+                                  }`}
+                                >
+                                  Recommended Stack
+                                </button>
+                                {prompt.env_variables && prompt.env_variables.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab("env")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                      activeTab === "env"
+                                        ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
+                                        : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
+                                    }`}
+                                  >
+                                    .env Config
+                                  </button>
+                                )}
+                                {prompt.db_schemas && prompt.db_schemas.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab("db")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                      activeTab === "db"
+                                        ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
+                                        : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
+                                    }`}
+                                  >
+                                    DB Schemas
+                                  </button>
+                                )}
+                                {prompt.phases && prompt.phases.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab("phases")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                      activeTab === "phases"
+                                        ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
+                                        : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
+                                    }`}
+                                  >
+                                    Phased Roadmap
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Tab Contents */}
+                              <div className="bg-[var(--theme-background-tertiary)] border border-[var(--theme-border)] rounded-2xl p-4 min-h-[200px]">
+                                
+                                {/* 1. Full Prompt Tab */}
+                                {activeTab === "full" && (
+                                  <div className="space-y-4 relative group/tab">
+                                    <div className="flex justify-between items-center">
+                                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                                        Full Application Prompt
+                                      </h4>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => copyToClipboard(prompt.full_prompt || prompt.generated_prompt)}
+                                        className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                        Copy Prompt
+                                      </Button>
+                                    </div>
+                                    <div className="text-xs sm:text-sm text-[var(--theme-text)] whitespace-pre-wrap max-h-[400px] overflow-y-auto pr-1">
+                                      {prompt.full_prompt || prompt.generated_prompt}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 2. Recommended Stack Tab */}
+                                {activeTab === "stack" && (
+                                  <div className="space-y-4">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                                      Recommended Tech Stack
+                                    </h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                      {prompt.recommended_stack &&
+                                        Object.entries(prompt.recommended_stack).map(([category, techs]) => (
+                                          <div key={category} className="p-3 bg-[var(--theme-background)] rounded-xl border border-[var(--theme-border)]">
+                                            <span className="text-[10px] font-bold text-[var(--theme-accent-1)] uppercase tracking-wider block mb-2">
+                                              {category}
+                                            </span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {techs.map((tech: string, i: number) => (
+                                                <span key={i} className="px-2 py-0.5 rounded bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)]">
+                                                  {tech}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 3. Env Variables Tab */}
+                                {activeTab === "env" && prompt.env_variables && (
+                                  <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                                        Environment Variables (.env)
+                                      </h4>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          const envStr = prompt.env_variables
+                                            ?.map((v) => `# ${v.description}\n${v.key}=${v.example}`)
+                                            .join("\n\n");
+                                          if (envStr) copyToClipboard(envStr);
+                                        }}
+                                        className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                        Copy .env Template
+                                      </Button>
+                                    </div>
+
+                                    <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                                      {prompt.env_variables.map((env, i) => (
+                                        <div key={i} className="p-3 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-xl space-y-1 text-left">
+                                          <div className="flex flex-wrap justify-between items-center gap-2">
+                                            <code className="text-xs font-bold text-[var(--theme-accent-1)] font-mono">{env.key}</code>
+                                            <code className="text-[10px] text-[var(--theme-text-tertiary)] font-mono">Example: {env.example}</code>
+                                          </div>
+                                          <p className="text-[11px] text-[var(--theme-text-secondary)]">
+                                            {env.description}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 4. DB Schemas Tab */}
+                                {activeTab === "db" && prompt.db_schemas && (
+                                  <div className="space-y-4">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                                      Database Schema Blueprint
+                                    </h4>
+                                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                                      {prompt.db_schemas.map((schema, i) => (
+                                        <div key={i} className="p-4 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-xl space-y-3 text-left">
+                                          <div className="flex items-center gap-1.5 border-b border-[var(--theme-border)] pb-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                                            <span className="font-bold text-xs text-[var(--theme-text)]">{schema.name}</span>
+                                          </div>
+                                          <div className="space-y-2">
+                                            {schema.fields.map((f, idx) => (
+                                              <div key={idx} className="flex justify-between items-center text-xs">
+                                                <span className="font-semibold font-mono text-[var(--theme-text-secondary)]">{f.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="px-1.5 py-0.5 rounded bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] text-[10px] font-mono text-[var(--theme-text-tertiary)]">
+                                                    {f.type}
+                                                  </span>
+                                                  {f.required && (
+                                                    <span className="px-1 py-0.5 rounded text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-bold uppercase tracking-wider">
+                                                      Required
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 5. Phased Breakdown Tab */}
+                                {activeTab === "phases" && prompt.phases && (
+                                  <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                                        Step-by-Step Phased Roadmap
+                                      </h4>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          const currentPhase = prompt.phases?.[activePhaseIndex];
+                                          if (currentPhase) {
+                                            copyToClipboard(currentPhase.content);
+                                          }
+                                        }}
+                                        className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                        Copy Current Phase Prompt
+                                      </Button>
+                                    </div>
+
+                                    {/* Phase selector tabs */}
+                                    <div className="flex gap-1 overflow-x-auto pb-1.5 border-b border-[var(--theme-border)]">
+                                      {prompt.phases.map((phase, i) => (
+                                        <button
+                                          key={i}
+                                          type="button"
+                                          onClick={() => setActivePhaseIndex(i)}
+                                          className={`px-3 py-1 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-all ${
+                                            activePhaseIndex === i
+                                              ? "bg-[var(--theme-accent-2)] text-[var(--theme-accent-text)]"
+                                              : "bg-[var(--theme-background)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-background-secondary)]"
+                                          }`}
+                                        >
+                                          Phase {phase.phase_number}: {phase.title}
+                                        </button>
+                                      ))}
+                                    </div>
+
+                                    {/* Phase Prompt content */}
+                                    <div className="text-xs sm:text-sm text-[var(--theme-text)] whitespace-pre-wrap max-h-[300px] overflow-y-auto pr-1 text-left">
+                                      {prompt.phases?.[activePhaseIndex]?.content}
+                                    </div>
+                                  </div>
+                                )}
+
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          )}
                         </div>
 
                         {/* Timestamp */}
