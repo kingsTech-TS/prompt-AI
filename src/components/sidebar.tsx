@@ -213,7 +213,7 @@ export default function Sidebar() {
               <Menu className="h-5 w-5" />
             )}
           </Button>
-          <Link href="/" className="font-bold text-lg flex items-center gap-2 text-[var(--theme-text)]">
+          <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2 text-[var(--theme-text)]">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
               <Terminal className="h-4 w-4 text-[var(--theme-accent-text)]" />
             </div>

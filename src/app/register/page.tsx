@@ -42,7 +42,7 @@ export default function RegisterPage() {
         title: "Registration successful!",
         description: "Redirecting to dashboard...",
       });
-      router.push("/");
+      router.push("/dashboard");
     } catch (error: any) {
       toast({
         title: "Registration failed",
