@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeSelector } from "@/components/theme-selector";
 import { Plus, LogOut, Menu, X, Sparkles, User, Terminal, Lightbulb, FolderOpen } from "lucide-react";
-import { removeToken } from "@/lib/auth";
+import { clearAllAuthData } from "@/lib/auth";
 import { promptsApi, authApi } from "@/lib/api";
 import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
 import Image from "next/image";
@@ -17,6 +17,7 @@ import Image from "next/image";
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { data, isLoading } = useQuery<PaginatedPromptResponse>({
@@ -55,7 +56,12 @@ export default function Sidebar() {
   };
 
   const handleLogout = () => {
-    removeToken();
+    // 1. Clear the auth token and any session storage
+    clearAllAuthData();
+    // 2. CRITICAL: Clear ALL React Query cache so the next user
+    //    never sees this user's prompts, profile, or collections.
+    queryClient.clear();
+    // 3. Navigate to login
     router.push("/login");
   };
 
@@ -162,7 +168,7 @@ export default function Sidebar() {
           )}
         </ScrollArea>
       </div>
-      <div className="p-4 border-t border-[var(--theme-border)]">
+      <div className="p-4 border-t border-[var(--theme-border)] space-y-2">
         <Button
           asChild
           variant="ghost"
@@ -191,6 +197,15 @@ export default function Sidebar() {
               </div>
             </div>
           </Link>
+        </Button>
+        <Button
+          id="sidebar-logout-btn"
+          variant="ghost"
+          onClick={handleLogout}
+          className="w-full justify-start gap-3 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors rounded-xl"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="text-sm font-medium">Sign Out</span>
         </Button>
       </div>
     </div>

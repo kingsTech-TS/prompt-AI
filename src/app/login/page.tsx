@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,13 +17,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { UserLogin } from "@/lib/types";
 import { authApi } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setToken, clearAllAuthData } from "@/lib/auth";
 import Link from "next/link";
 import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<UserLogin>({
@@ -36,6 +38,11 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const response = await authApi.login(values);
+      // Security: wipe any previous user's token + session data
+      // and clear all cached query data before logging in the new user.
+      clearAllAuthData();
+      queryClient.clear();
+      // Now set the new user's token
       setToken(response.access_token);
       toast({
         title: "Login successful!",
