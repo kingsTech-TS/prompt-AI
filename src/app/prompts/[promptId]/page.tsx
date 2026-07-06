@@ -173,7 +173,31 @@ export default function PromptDetailPage() {
     firstChatMessage.role === "assistant" &&
     firstChatMessage.content.trim() === prompt.generated_prompt.trim();
 
-  const allMessages = hasDuplicatePrompt
+  // Construct initial message matching user input (e.g. original idea text or page analysis request)
+  const initialUserMessage = (() => {
+    if (prompt.source_type === "idea" && prompt.idea_text) {
+      return {
+        role: "user" as const,
+        content: prompt.idea_text,
+        timestamp: prompt.created_at,
+      };
+    } else if (prompt.source_type !== "idea" && prompt.source_url) {
+      return {
+        role: "user" as const,
+        content: `Generate a frontend prompt from URL: ${prompt.source_url}`,
+        timestamp: prompt.created_at,
+      };
+    } else if (prompt.source_type !== "idea" && prompt.cloudinary_images.length > 0) {
+      return {
+        role: "user" as const,
+        content: `Generate a frontend prompt from uploaded image(s).`,
+        timestamp: prompt.created_at,
+      };
+    }
+    return null;
+  })();
+
+  const chatBaseMessages = hasDuplicatePrompt
     ? chatSession.messages
     : [
         {
@@ -183,6 +207,11 @@ export default function PromptDetailPage() {
         },
         ...chatSession.messages,
       ];
+
+  const allMessages = initialUserMessage
+    ? [initialUserMessage, ...chatBaseMessages]
+    : chatBaseMessages;
+
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -329,7 +358,9 @@ export default function PromptDetailPage() {
               <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4">
                 {allMessages.map((msg, idx) => {
                   const isAssistant = msg.role === "assistant";
-                  const isSystemPrompt = idx === 0 && isAssistant;
+                  const firstAssistantIdx = allMessages.findIndex((m) => m.role === "assistant");
+                  const isSystemPrompt = idx === firstAssistantIdx && isAssistant;
+
 
                   return (
                     <div
