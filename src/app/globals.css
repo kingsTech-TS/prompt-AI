@@ -5,41 +5,144 @@
 @layer base {
   :root {
     /* Default theme variables (will be overridden by JS) */
-    --theme-background: #1a1a1a;
-    --theme-background-secondary: #212121;
-    --theme-background-tertiary: #2f2f2f;
-    --theme-text: #ffffff;
-    --theme-text-secondary: #9ca3af;
-    --theme-text-tertiary: #6b7280;
-    --theme-border: #3f3f3f;
-    --theme-border-hover: #525252;
-    --theme-accent-1: #eab308;
+    --theme-background: #0c0c0d;
+    --theme-background-secondary: #141416;
+    --theme-background-tertiary: #1d1d20;
+    --theme-text: #f4f4f5;
+    --theme-text-secondary: #a1a1aa;
+    --theme-text-tertiary: #71717a;
+    --theme-border: #27272a;
+    --theme-border-hover: #3f3f46;
+    --theme-accent-1: #f59e0b;
     --theme-accent-2: #f97316;
-    --theme-accent-text: #000000;
+    --theme-accent-text: #0c0a09;
   }
 }
 
 @layer base {
   * {
-    @apply border-[var(--theme-border)];
+    @apply border-line;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
   body {
-    @apply bg-[var(--theme-background)] text-[var(--theme-text)];
+    @apply bg-canvas text-fg;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--theme-accent-1) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--theme-accent-1) 70%, transparent);
+    outline-offset: 2px;
+  }
+  /* Thin, unobtrusive scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-border) transparent;
   }
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--theme-background-secondary);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: var(--theme-border);
-    border-radius: 4px;
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--theme-border-hover);
+    background-clip: padding-box;
   }
 }
+
+/* ── App utilities ───────────────────────────────────────────── */
+
+@layer components {
+  /* Primary brand gradient used by CTAs and avatars */
+  .bg-brand-gradient {
+    background-image: linear-gradient(135deg, var(--theme-accent-1), var(--theme-accent-2));
+  }
+  .text-gradient {
+    background-image: linear-gradient(120deg, var(--theme-accent-1), var(--theme-accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Frosted surface for sticky bars and floating panels */
+  .glass {
+    background: color-mix(in srgb, var(--theme-background) 72%, transparent);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    backdrop-filter: saturate(160%) blur(14px);
+  }
+  /* Soft ambient glow behind page content */
+  .ambient {
+    background-image:
+      radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--theme-accent-1) 9%, transparent), transparent 70%),
+      radial-gradient(40rem 24rem at -10% 110%, color-mix(in srgb, var(--theme-accent-2) 7%, transparent), transparent 70%);
+  }
+  /* Faint dot grid */
+  .bg-dots {
+    background-image: radial-gradient(color-mix(in srgb, var(--theme-text) 9%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  /* Card with a hairline border that lights up on hover */
+  .card-interactive {
+    @apply rounded-2xl border border-line bg-surface transition-all duration-200;
+  }
+  .card-interactive:hover {
+    @apply border-line-strong shadow-soft -translate-y-0.5;
+  }
+  .kbd {
+    @apply inline-flex items-center rounded-md border border-line bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-fg-muted;
+  }
+}
+
+/* ── Rendered Markdown (chat messages, prompt previews) ───────── */
+
+.markdown {
+  @apply text-[0.9375rem] leading-7 text-fg;
+  overflow-wrap: anywhere;
+}
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p { @apply my-3; }
+.markdown h1 { @apply mt-7 mb-3 text-2xl font-semibold tracking-tight; }
+.markdown h2 { @apply mt-7 mb-3 border-b border-line pb-2 text-xl font-semibold tracking-tight; }
+.markdown h3 { @apply mt-6 mb-2 text-base font-semibold; }
+.markdown h4,
+.markdown h5,
+.markdown h6 { @apply mt-5 mb-2 text-sm font-semibold uppercase tracking-wide text-fg-muted; }
+.markdown ul { @apply my-3 list-disc space-y-1.5 pl-6; }
+.markdown ol { @apply my-3 list-decimal space-y-1.5 pl-6; }
+.markdown li > ul,
+.markdown li > ol { @apply my-1.5; }
+.markdown li::marker { color: var(--theme-text-tertiary); }
+.markdown strong { @apply font-semibold text-fg; }
+.markdown a { @apply font-medium text-brand underline decoration-brand/40 underline-offset-2 hover:decoration-brand; }
+.markdown hr { @apply my-6 border-line; }
+.markdown blockquote { @apply my-4 border-l-2 border-brand/60 pl-4 text-fg-muted; }
+.markdown :not(pre) > code {
+  @apply rounded-md border border-line bg-elevated px-1.5 py-0.5 font-mono text-[0.85em];
+}
+.markdown pre {
+  @apply my-4 overflow-x-auto rounded-xl border border-line bg-canvas p-4 font-mono text-[0.8125rem] leading-6;
+}
+.markdown pre code { @apply bg-transparent p-0; }
+.markdown table { @apply my-4 block w-full overflow-x-auto border-collapse text-sm; }
+.markdown th { @apply border border-line bg-elevated px-3 py-2 text-left font-semibold; }
+.markdown td { @apply border border-line px-3 py-2 align-top; }
 
 /* ── Landing Page Animations ─────────────────────────────────── */
 
@@ -159,3 +262,78 @@
   animation: shimmer 2.5s infinite;
 }
 
+
+/* ── Scroll reveal (see components/reveal.tsx) ───────────────── */
+
+.reveal {
+  opacity: 0;
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+.reveal[data-variant="up"]    { transform: translateY(28px); }
+.reveal[data-variant="down"]  { transform: translateY(-20px); }
+.reveal[data-variant="left"]  { transform: translateX(-32px); }
+.reveal[data-variant="right"] { transform: translateX(32px); }
+.reveal[data-variant="scale"] { transform: scale(0.94); }
+.reveal[data-variant="blur"]  { filter: blur(10px); transform: translateY(12px); }
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* ── Ambient motion ──────────────────────────────────────────── */
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 32s linear infinite; }
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(30px, -20px) scale(1.06); }
+  66%      { transform: translate(-20px, 15px) scale(0.96); }
+}
+.animate-drift      { animation: drift 14s ease-in-out infinite; }
+.animate-drift-slow { animation: drift 20s ease-in-out infinite reverse; }
+
+@keyframes lineGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes lineGrowY {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.is-visible .animate-line-x { animation: lineGrow 1.2s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s both; transform-origin: left; }
+.is-visible .animate-line-y { animation: lineGrowY 1.2s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s both; transform-origin: top; }
+
+@keyframes typeLine {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+.is-visible .animate-type-line { animation: typeLine 1.1s steps(40, end) both; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; filter: none; transition: none; }
+  .animate-marquee, .animate-drift, .animate-drift-slow,
+  .animate-float-y, .animate-float-y-slow, .animate-gradient-shift, .animate-glow-pulse {
+    animation: none;
+  }
+  .is-visible .animate-type-line, .is-visible .animate-line-x, .is-visible .animate-line-y { animation: none; }
+}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useTheme, ThemeName, THEMES } from "@/contexts/theme-context";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,24 +9,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Palette } from "lucide-react";
+import { Check, Palette } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function ThemeSelector() {
   const { themeName, setTheme } = useTheme();
 
   const themes: { name: ThemeName; label: string; category: string }[] = [
     // Dark themes
-    { name: "dark-orange", label: "Dark Orange", category: "Dark" },
-    { name: "dark-blue", label: "Dark Blue", category: "Dark" },
-    { name: "dark-purple", label: "Dark Purple", category: "Dark" },
-    { name: "dark-green", label: "Dark Green", category: "Dark" },
-    { name: "dark-pink", label: "Dark Pink", category: "Dark" },
+    { name: "dark-orange", label: "Orange", category: "Dark" },
+    { name: "dark-blue", label: "Blue", category: "Dark" },
+    { name: "dark-purple", label: "Purple", category: "Dark" },
+    { name: "dark-green", label: "Green", category: "Dark" },
+    { name: "dark-pink", label: "Pink", category: "Dark" },
     // Light themes
-    { name: "light-orange", label: "Light Orange", category: "Light" },
-    { name: "light-blue", label: "Light Blue", category: "Light" },
-    { name: "light-purple", label: "Light Purple", category: "Light" },
-    { name: "light-green", label: "Light Green", category: "Light" },
-    { name: "light-pink", label: "Light Pink", category: "Light" },
+    { name: "light-orange", label: "Orange", category: "Light" },
+    { name: "light-blue", label: "Blue", category: "Light" },
+    { name: "light-purple", label: "Purple", category: "Light" },
+    { name: "light-green", label: "Green", category: "Light" },
+    { name: "light-pink", label: "Pink", category: "Light" },
   ];
 
   // Group themes by category
@@ -40,43 +40,41 @@ export function ThemeSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] rounded-xl transition-all"
+        <button
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-elevated hover:text-fg"
+          title="Change theme"
         >
-          <Palette className="h-5 w-5" />
-        </Button>
+          <Palette className="h-4 w-4" />
+        </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] w-56 rounded-xl">
-        <DropdownMenuLabel className="text-[var(--theme-text-secondary)]">Themes</DropdownMenuLabel>
-        {Object.entries(groupedThemes).map(([category, categoryThemes]) => (
+      <DropdownMenuContent align="end" className="w-56 p-1.5">
+        <DropdownMenuLabel className="px-2 text-xs font-medium text-fg-subtle">Theme</DropdownMenuLabel>
+        {Object.entries(groupedThemes).map(([category, categoryThemes], i) => (
           <div key={category}>
-            <DropdownMenuSeparator className="bg-[var(--theme-border)]" />
-            <div className="px-2 py-1 text-xs font-semibold text-[var(--theme-text-tertiary)] uppercase tracking-wider">
-              {category}
-            </div>
-            {categoryThemes.map((theme) => (
-              <DropdownMenuItem
-                key={theme.name}
-                onClick={() => setTheme(theme.name)}
-                className={`cursor-pointer rounded-lg mx-1 my-0.5 text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] ${
-                  themeName === theme.name ? "bg-[var(--theme-background-tertiary)]" : ""
-                }`}
-              >
-                <div className="flex items-center gap-2">
+            {i > 0 && <DropdownMenuSeparator className="bg-line" />}
+            <div className="px-2 pb-1 pt-1.5 text-[11px] font-medium text-fg-subtle">{category}</div>
+            {categoryThemes.map((theme) => {
+              const colors = THEMES[theme.name].colors;
+              const selected = themeName === theme.name;
+              return (
+                <DropdownMenuItem
+                  key={theme.name}
+                  onClick={() => setTheme(theme.name)}
+                  className={cn("cursor-pointer gap-2.5 text-fg", selected && "bg-elevated")}
+                >
                   {/* Color preview: this theme's own colors, not the active theme's */}
                   <div
-                    className="w-4 h-4 rounded-full border"
+                    className="h-4 w-4 rounded-full border"
                     style={{
-                      background: `linear-gradient(135deg, ${THEMES[theme.name].colors.accent1} 50%, ${THEMES[theme.name].colors.background} 50%)`,
-                      borderColor: THEMES[theme.name].colors.border,
+                      background: `linear-gradient(135deg, ${colors.accent1} 50%, ${colors.background} 50%)`,
+                      borderColor: colors.borderHover,
                     }}
                   />
-                  {theme.label}
-                </div>
-              </DropdownMenuItem>
-            ))}
+                  <span className="flex-1">{theme.label}</span>
+                  {selected && <Check className="h-3.5 w-3.5 text-brand" />}
+                </DropdownMenuItem>
+              );
+            })}
           </div>
         ))}
       </DropdownMenuContent>

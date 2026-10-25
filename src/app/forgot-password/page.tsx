@@ -61,8 +61,8 @@ export default function ForgotPasswordPage() {
 
   if (isEmailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
-        <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-[var(--theme-border)]">
+      <div className="ambient min-h-screen flex items-center justify-center p-4 bg-canvas">
+        <Card className="w-full max-w-md rounded-3xl shadow-lift animate-rise bg-surface border-[var(--theme-border)]">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
@@ -100,8 +100,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
-      <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-[var(--theme-border)]">
+    <div className="ambient min-h-screen flex items-center justify-center p-4 bg-canvas">
+      <Card className="w-full max-w-md rounded-3xl shadow-lift animate-rise bg-surface border-[var(--theme-border)]">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">

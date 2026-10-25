@@ -4,7 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Form,
   FormControl,
@@ -78,8 +78,8 @@ function ResetPasswordFormContent() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
-        <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-red-500/20">
+      <div className="ambient min-h-screen flex items-center justify-center p-4 bg-canvas">
+        <Card className="w-full max-w-md rounded-3xl shadow-lift animate-rise bg-surface border-red-500/20">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -108,8 +108,8 @@ function ResetPasswordFormContent() {
 
   if (isPasswordReset) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
-        <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-[var(--theme-border)]">
+      <div className="ambient min-h-screen flex items-center justify-center p-4 bg-canvas">
+        <Card className="w-full max-w-md rounded-3xl shadow-lift animate-rise bg-surface border-[var(--theme-border)]">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
@@ -137,8 +137,8 @@ function ResetPasswordFormContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
-      <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-[var(--theme-border)]">
+    <div className="ambient min-h-screen flex items-center justify-center p-4 bg-canvas">
+      <Card className="w-full max-w-md rounded-3xl shadow-lift animate-rise bg-surface border-[var(--theme-border)]">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
@@ -167,11 +167,11 @@ function ResetPasswordFormContent() {
                   <FormItem>
                     <FormLabel className="text-[var(--theme-text-secondary)]">New password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
+                      <PasswordInput
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         {...field}
-                        className="bg-[var(--theme-background)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0"
+                        className="h-11"
                       />
                     </FormControl>
                     <FormMessage className="text-red-400" />
@@ -188,11 +188,11 @@ function ResetPasswordFormContent() {
                   <FormItem>
                     <FormLabel className="text-[var(--theme-text-secondary)]">Confirm password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
+                      <PasswordInput
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         {...field}
-                        className="bg-[var(--theme-background)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0"
+                        className="h-11"
                       />
                     </FormControl>
                     <FormMessage className="text-red-400" />
@@ -224,7 +224,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-background)]">
+        <div className="ambient min-h-screen flex items-center justify-center p-4 bg-canvas">
           <div className="w-12 h-12 rounded-full border-4 border-[var(--theme-accent-1)] border-t-transparent animate-spin"></div>
         </div>
       }

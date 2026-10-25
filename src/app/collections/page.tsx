@@ -282,34 +282,36 @@ export default function CollectionsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-screen overflow-hidden bg-canvas">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-[var(--theme-background)] p-4 lg:p-8 mt-16 lg:mt-0">
-          <div className="max-w-6xl mx-auto space-y-8">
-            
+        <main className="ambient flex-1 overflow-y-auto pt-14 lg:pt-0">
+          <div className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-8 lg:py-12">
+
             {/* Header */}
-            <div>
-              <h1 className="text-3xl font-extrabold text-[var(--theme-text)] flex items-center gap-2">
-                <Code2 className="h-8 w-8 text-[var(--theme-accent-1)]" />
-                Tech Stack Collections
+            <div className="animate-rise">
+              <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient shadow-glow">
+                  <Code2 className="h-4 w-4 text-brand-fg" />
+                </span>
+                Tech stack collections
               </h1>
-              <p className="text-sm text-[var(--theme-text-secondary)] mt-2">
+              <p className="mt-2 max-w-2xl text-sm text-fg-muted">
                 Manage your reusable technology stacks and combine them to generate precise, custom-tailored prompts.
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
+
               {/* Left Column: Stack Collections */}
               <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-[var(--theme-border)] pb-3">
-                  <h2 className="text-xl font-bold text-[var(--theme-text)] flex items-center gap-2">
-                    <FolderOpen className="h-5 w-5 text-blue-400" />
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-fg">
+                    <FolderOpen className="h-4 w-4 text-brand" />
                     Collections
                   </h2>
                   <Button
                     onClick={openNewCollectionDialog}
-                    className="h-9 px-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl shadow-md flex items-center gap-1.5 text-xs font-semibold"
+                    size="sm" className="h-9 px-3"
                   >
                     <Plus className="h-4 w-4" />
                     New Stack
@@ -319,7 +321,7 @@ export default function CollectionsPage() {
                 {collectionsLoading ? (
                   <div className="space-y-4">
                     {[...Array(2)].map((_, i) => (
-                      <div key={i} className="h-32 bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] rounded-2xl animate-pulse" />
+                      <div key={i} className="h-32 animate-pulse rounded-2xl bg-elevated" />
                     ))}
                   </div>
                 ) : collections && collections.length > 0 ? (
@@ -327,21 +329,21 @@ export default function CollectionsPage() {
                     {collections.map((c) => (
                       <div
                         key={c.id}
-                        className="group p-5 rounded-2xl bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] hover:border-[var(--theme-border-hover)] hover:shadow-md transition-all relative overflow-hidden"
+                        className="card-interactive group relative overflow-hidden p-5"
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h3 className="font-bold text-[var(--theme-text)] text-sm group-hover:text-[var(--theme-accent-1)] transition-colors">
+                            <h3 className="text-sm font-semibold text-fg">
                               {c.name}
                             </h3>
-                            <span className={`inline-block border px-2 py-0.5 rounded-full text-[10px] font-bold mt-1.5 uppercase tracking-wider ${getTypeColor(c.type)}`}>
+                            <span className={`inline-block border px-2 py-0.5 rounded-full text-[11px] font-medium mt-1.5 capitalize ${getTypeColor(c.type)}`}>
                               {c.type}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                             <button
                               onClick={() => openEditCollectionDialog(c)}
-                              className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-blue-400 hover:bg-[var(--theme-background-tertiary)] transition-all"
+                              className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-fg hover:bg-elevated transition-all"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
@@ -359,7 +361,7 @@ export default function CollectionsPage() {
                           {c.technologies.map((t, idx) => (
                             <span
                               key={idx}
-                              className="px-2 py-1 rounded-lg text-[10px] bg-[var(--theme-background-tertiary)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] cursor-default hover:border-gray-500/30 transition-all"
+                              className="cursor-default rounded-lg border border-line bg-canvas/60 px-2 py-1 text-[11px] text-fg-muted"
                               title={`Category: ${t.category}`}
                             >
                               {t.name}
@@ -370,7 +372,7 @@ export default function CollectionsPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 border border-dashed border-[var(--theme-border)] rounded-2xl">
+                  <div className="rounded-2xl border border-dashed border-line px-6 py-12 text-center">
                     <Briefcase className="h-10 w-10 text-[var(--theme-text-tertiary)] mx-auto mb-3" />
                     <p className="text-sm font-semibold text-[var(--theme-text-secondary)]">No stack collections yet</p>
                     <p className="text-xs text-[var(--theme-text-tertiary)] mt-1">Create one to custom-fit database structures and frameworks.</p>
@@ -380,14 +382,14 @@ export default function CollectionsPage() {
 
               {/* Right Column: Sub-Collections */}
               <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-[var(--theme-border)] pb-3">
-                  <h2 className="text-xl font-bold text-[var(--theme-text)] flex items-center gap-2">
-                    <Layers className="h-5 w-5 text-purple-400" />
-                    Sub-Collections
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-base font-semibold text-fg">
+                    <Layers className="h-4 w-4 text-brand" />
+                    Sub-collections
                   </h2>
                   <Button
                     onClick={openNewSubDialog}
-                    className="h-9 px-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl shadow-md flex items-center gap-1.5 text-xs font-semibold"
+                    size="sm" variant="outline" className="h-9 px-3"
                   >
                     <Plus className="h-4 w-4" />
                     New Multi-Stack
@@ -397,7 +399,7 @@ export default function CollectionsPage() {
                 {subCollectionsLoading ? (
                   <div className="space-y-4">
                     {[...Array(2)].map((_, i) => (
-                      <div key={i} className="h-32 bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] rounded-2xl animate-pulse" />
+                      <div key={i} className="h-32 animate-pulse rounded-2xl bg-elevated" />
                     ))}
                   </div>
                 ) : subCollections && subCollections.length > 0 ? (
@@ -405,21 +407,21 @@ export default function CollectionsPage() {
                     {subCollections.map((sc) => (
                       <div
                         key={sc.id}
-                        className="group p-5 rounded-2xl bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] hover:border-[var(--theme-border-hover)] hover:shadow-md transition-all relative overflow-hidden"
+                        className="card-interactive group relative overflow-hidden p-5"
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h3 className="font-bold text-[var(--theme-text)] text-sm group-hover:text-[var(--theme-accent-2)] transition-colors">
+                            <h3 className="text-sm font-semibold text-fg">
                               {sc.name}
                             </h3>
-                            <span className="inline-block border px-2 py-0.5 rounded-full text-[10px] font-bold mt-1.5 uppercase tracking-wider text-purple-400 border-purple-400/20 bg-purple-500/10">
-                              Multi-Stack Group
+                            <span className="inline-block border px-2 py-0.5 rounded-full text-[11px] font-medium mt-1.5 capitalize text-brand border-brand/20 bg-brand/10">
+                              Multi-stack group
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                             <button
                               onClick={() => openEditSubDialog(sc)}
-                              className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-purple-400 hover:bg-[var(--theme-background-tertiary)] transition-all"
+                              className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-fg hover:bg-elevated transition-all"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
@@ -439,7 +441,7 @@ export default function CollectionsPage() {
                               key={c.id}
                               className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--theme-background-tertiary)] border border-[var(--theme-border)]"
                             >
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                              <div className="h-1.5 w-1.5 rounded-full bg-brand" />
                               <span className="text-xs font-semibold text-[var(--theme-text-secondary)]">
                                 {c.name}
                               </span>
@@ -450,7 +452,7 @@ export default function CollectionsPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 border border-dashed border-[var(--theme-border)] rounded-2xl">
+                  <div className="rounded-2xl border border-dashed border-line px-6 py-12 text-center">
                     <Layers className="h-10 w-10 text-[var(--theme-text-tertiary)] mx-auto mb-3" />
                     <p className="text-sm font-semibold text-[var(--theme-text-secondary)]">No sub-collections yet</p>
                     <p className="text-xs text-[var(--theme-text-tertiary)] mt-1">Combine multiple stacks (e.g. Frontend Stack + Backend Stack) into a single grouped set.</p>
@@ -465,9 +467,9 @@ export default function CollectionsPage() {
 
       {/* ── Dialog: Collection Create/Edit ────────────────────────────── */}
       <Dialog open={isCollectionOpen} onOpenChange={setIsCollectionOpen}>
-        <DialogContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-3xl max-w-lg mx-4">
+        <DialogContent className="mx-4 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
               <FolderOpen className="h-5 w-5 text-[var(--theme-accent-1)]" />
               {editingCollectionId ? "Edit Tech Stack Collection" : "New Tech Stack Collection"}
             </DialogTitle>
@@ -477,11 +479,11 @@ export default function CollectionsPage() {
           </DialogHeader>
 
           <form onSubmit={handleCollectionSubmit} className="space-y-5 mt-4">
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Stack Name */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[var(--theme-text-secondary)] uppercase tracking-wider">
+                <label className="text-xs font-medium text-fg-muted">
                   Stack Name
                 </label>
                 <Input
@@ -496,7 +498,7 @@ export default function CollectionsPage() {
 
               {/* Stack Type */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[var(--theme-text-secondary)] uppercase tracking-wider">
+                <label className="text-xs font-medium text-fg-muted">
                   Stack Type
                 </label>
                 <select
@@ -514,7 +516,7 @@ export default function CollectionsPage() {
 
             {/* Technologies list */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-[var(--theme-text-secondary)] uppercase tracking-wider flex items-center gap-1">
+              <label className="text-xs font-medium text-fg-muted flex items-center gap-1">
                 <Tag className="h-3.5 w-3.5" />
                 Stack Technologies
               </label>
@@ -534,7 +536,7 @@ export default function CollectionsPage() {
                   }}
                   className="h-9 bg-[var(--theme-background)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-lg flex-1 text-xs"
                 />
-                
+
                 <select
                   value={newTechCategory}
                   onChange={(e) => setNewTechCategory(e.target.value)}
@@ -587,7 +589,6 @@ export default function CollectionsPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 bg-[var(--theme-background-tertiary)] hover:bg-[var(--theme-border-hover)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-xl"
                 onClick={closeCollectionDialog}
               >
                 Cancel
@@ -595,7 +596,7 @@ export default function CollectionsPage() {
               <Button
                 type="submit"
                 disabled={saveCollectionMutation.isPending}
-                className="h-10 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-xl px-5 disabled:opacity-50"
+                className="px-5"
               >
                 {saveCollectionMutation.isPending ? "Saving..." : "Save Collection"}
               </Button>
@@ -606,10 +607,10 @@ export default function CollectionsPage() {
 
       {/* ── Dialog: Sub-Collection Create/Edit ─────────────────────────── */}
       <Dialog open={isSubCollectionOpen} onOpenChange={setIsSubCollectionOpen}>
-        <DialogContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-3xl max-w-lg mx-4">
+        <DialogContent className="mx-4 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Layers className="h-5 w-5 text-purple-400" />
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Layers className="h-5 w-5 text-brand" />
               {editingSubId ? "Edit Multi-Stack Group" : "New Multi-Stack Group"}
             </DialogTitle>
             <DialogDescription className="text-xs text-[var(--theme-text-secondary)]">
@@ -618,10 +619,10 @@ export default function CollectionsPage() {
           </DialogHeader>
 
           <form onSubmit={handleSubSubmit} className="space-y-5 mt-4">
-            
+
             {/* Sub-Collection Name */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[var(--theme-text-secondary)] uppercase tracking-wider">
+              <label className="text-xs font-medium text-fg-muted">
                 Multi-Stack Group Name
               </label>
               <Input
@@ -636,10 +637,10 @@ export default function CollectionsPage() {
 
             {/* Selection list */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-[var(--theme-text-secondary)] uppercase tracking-wider">
+              <label className="text-xs font-medium text-fg-muted">
                 Select Collections to Include
               </label>
-              
+
               <div className="bg-[var(--theme-background-tertiary)] border border-[var(--theme-border)] rounded-2xl p-4 max-h-[180px] overflow-y-auto space-y-2">
                 {collections && collections.length > 0 ? (
                   collections.map((c) => {
@@ -651,18 +652,18 @@ export default function CollectionsPage() {
                         onClick={() => toggleCollectionSelection(c.id)}
                         className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                           isSelected
-                            ? "bg-[var(--theme-background)] border-purple-500/40 text-[var(--theme-text)]"
+                            ? "bg-canvas border-brand/50 text-fg"
                             : "bg-transparent border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background)]/50"
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`inline-block border px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${getTypeColor(c.type)}`}>
+                          <span className={`inline-block border px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${getTypeColor(c.type)}`}>
                             {c.type}
                           </span>
                           <span className="text-xs font-bold">{c.name}</span>
                         </div>
                         {isSelected && (
-                          <Check className="h-4 w-4 text-purple-400" />
+                          <Check className="h-4 w-4 text-brand" />
                         )}
                       </button>
                     );
@@ -679,7 +680,6 @@ export default function CollectionsPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 bg-[var(--theme-background-tertiary)] hover:bg-[var(--theme-border-hover)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-xl"
                 onClick={closeSubDialog}
               >
                 Cancel
@@ -687,7 +687,7 @@ export default function CollectionsPage() {
               <Button
                 type="submit"
                 disabled={saveSubMutation.isPending}
-                className="h-10 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-xl px-5 disabled:opacity-50"
+                className="px-5"
               >
                 {saveSubMutation.isPending ? "Saving..." : "Save Group"}
               </Button>

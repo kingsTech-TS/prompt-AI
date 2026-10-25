@@ -4,22 +4,15 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { UserResponse } from "@/lib/types";
 import { authApi } from "@/lib/api";
 import ProtectedRoute from "@/components/protected-route";
 import Sidebar from "@/components/sidebar";
 import Image from "next/image";
-import { Upload, User as UserIcon, LogOut } from "lucide-react";
-import { removeToken } from "@/lib/auth";
+import { Camera, User as UserIcon, LogOut, Mail, CalendarDays, ShieldCheck } from "lucide-react";
+import { clearAllAuthData } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -67,112 +60,158 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    removeToken();
+    // Same as the sidebar: drop the token and every cached query for this user
+    clearAllAuthData();
+    queryClient.clear();
     router.push("/login");
   };
 
-  if (userLoading) {
-    return (
-      <ProtectedRoute>
-        <div className="flex h-screen">
-          <Sidebar />
-          <main className="flex-1 flex items-center justify-center bg-[var(--theme-background)] pt-16 lg:pt-0">
-            <div className="w-24 h-24 rounded-full bg-[var(--theme-background-tertiary)] animate-pulse"></div>
-          </main>
-        </div>
-      </ProtectedRoute>
-    );
-  }
+  const usagePct =
+    user && user.max_prompts > 0 ? Math.min(100, (user.prompts_used / user.max_prompts) * 100) : 0;
+  const limitReached = !!user && user.prompts_used >= user.max_prompts;
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen">
+      <div className="flex h-screen overflow-hidden bg-canvas">
         <Sidebar />
-        <main className="flex-1 flex flex-col min-w-0 bg-[var(--theme-background)] pt-16 lg:pt-0">
-          <div className="flex-1 flex items-center justify-center p-8">
-            <Card className="w-full max-w-md bg-[var(--theme-background-secondary)] border-[var(--theme-border)]">
-              <CardHeader className="text-center">
-                <div className="flex justify-center mb-6">
-                  <div
-                    className={`relative w-32 h-32 rounded-full flex items-center justify-center border-4 border-dashed border-[var(--theme-border)] overflow-hidden z-0 ${isDragging ? 'border-[var(--theme-accent-1)] bg-[var(--theme-background-tertiary)]' : 'bg-[var(--theme-background-tertiary)]'}`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDragging(true);
-                    }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDragging(false);
-                      if (e.dataTransfer.files?.[0]) {
-                        handleFileChange(e.dataTransfer.files[0]);
-                      }
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {user?.profile_picture_url ? (
-                      <Image
-                        src={user.profile_picture_url}
-                        alt={user.username}
-                        fill
-                        unoptimized={true}
-                        className="object-cover"
+        <main className="ambient flex-1 overflow-y-auto pt-14 lg:pt-0">
+          <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 lg:py-14">
+            <h1 className="text-2xl font-semibold tracking-tight text-fg">Profile</h1>
+            <p className="mt-1 text-sm text-fg-muted">Manage your account and usage.</p>
+
+            {userLoading ? (
+              <div className="mt-8 space-y-4">
+                <div className="h-40 animate-pulse rounded-3xl bg-elevated" />
+                <div className="h-28 animate-pulse rounded-3xl bg-elevated" />
+              </div>
+            ) : (
+              <div className="mt-8 space-y-4">
+                {/* Identity */}
+                <section className="animate-rise overflow-hidden rounded-3xl border border-line bg-surface shadow-soft">
+                  <div className="h-24 bg-brand-gradient opacity-80" />
+                  <div className="px-6 pb-6">
+                    <div className="-mt-12 flex items-end justify-between gap-4">
+                      <button
+                        type="button"
+                        className={cn(
+                          "group relative h-24 w-24 overflow-hidden rounded-full border-4 border-surface bg-elevated shadow-soft transition-all",
+                          isDragging && "ring-4 ring-brand/40"
+                        )}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDragging(true);
+                        }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDragging(false);
+                          if (e.dataTransfer.files?.[0]) {
+                            handleFileChange(e.dataTransfer.files[0]);
+                          }
+                        }}
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Change profile picture"
+                      >
+                        {user?.profile_picture_url ? (
+                          <Image
+                            src={user.profile_picture_url}
+                            alt={user.username}
+                            fill
+                            unoptimized={true}
+                            className="object-cover"
+                          />
+                        ) : (
+                          <UserIcon className="mx-auto h-10 w-10 text-fg-subtle" />
+                        )}
+                        <div
+                          className={cn(
+                            "absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity",
+                            isLoading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                          )}
+                        >
+                          {isLoading ? (
+                            <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          ) : (
+                            <Camera className="h-5 w-5 text-white" />
+                          )}
+                        </div>
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleFileChange(e.target.files[0]);
+                          }
+                        }}
                       />
-                    ) : (
-                      <UserIcon className="h-12 w-12 text-[var(--theme-text-secondary)]" />
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition-opacity">
-                      <Upload className="h-8 w-8 text-white" />
+                      {user?.role === "admin" && (
+                        <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-brand/20 bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Admin
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        handleFileChange(e.target.files[0]);
-                      }
-                    }}
-                  />
-                </div>
-                <CardTitle className="text-2xl text-[var(--theme-text)]">{user?.username}</CardTitle>
-                <CardDescription className="text-[var(--theme-text-secondary)]">{user?.email}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="bg-[var(--theme-background-tertiary)] rounded-xl p-4 border border-[var(--theme-border)]">
-                  <div className="text-sm text-[var(--theme-text-tertiary)] mb-1">Member since</div>
-                  <div className="text-[var(--theme-text)]">
-                    {user?.created_at
-                      ? new Date(user.created_at).toLocaleDateString()
-                      : "-"}
-                  </div>
-                </div>
-                {user && user.role !== "admin" && (
-                  <div className="bg-[var(--theme-background-tertiary)] rounded-xl p-4 border border-[var(--theme-border)] flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-[var(--theme-text-tertiary)] mb-1">Prompts Used</div>
-                      <div className={`font-semibold ${user.prompts_used >= user.max_prompts ? 'text-red-500' : 'text-[var(--theme-text)]'}`}>
-                        {user.prompts_used} / {user.max_prompts}
-                      </div>
-                    </div>
-                    {user.prompts_used >= user.max_prompts && (
-                      <span className="text-xs font-semibold px-3 py-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full">
-                        Limit Reached
+
+                    <h2 className="mt-4 text-xl font-semibold text-fg">{user?.username}</h2>
+                    <div className="mt-3 flex flex-col gap-2 text-sm text-fg-muted sm:flex-row sm:gap-6">
+                      <span className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-fg-subtle" />
+                        {user?.email}
                       </span>
-                    )}
+                      <span className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-fg-subtle" />
+                        Joined{" "}
+                        {user?.created_at
+                          ? new Date(user.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+                          : "-"}
+                      </span>
+                    </div>
                   </div>
+                </section>
+
+                {/* Usage */}
+                {user && user.role !== "admin" && (
+                  <section className="animate-rise rounded-3xl border border-line bg-surface p-6 shadow-soft [animation-delay:60ms]">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-sm font-medium text-fg">Prompt usage</h3>
+                        <p className="mt-0.5 text-xs text-fg-muted">Each generated prompt uses one credit.</p>
+                      </div>
+                      {limitReached && (
+                        <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-400">
+                          Limit reached
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-5 flex items-baseline gap-1.5">
+                      <span className="text-3xl font-semibold tabular-nums tracking-tight text-fg">{user.prompts_used}</span>
+                      <span className="text-sm text-fg-muted">/ {user.max_prompts} used</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-elevated">
+                      <div
+                        className={cn("h-full rounded-full transition-all", limitReached ? "bg-red-500" : "bg-brand-gradient")}
+                        style={{ width: `${usagePct}%` }}
+                      />
+                    </div>
+                  </section>
                 )}
-                <Button
-                  variant="ghost"
-                  className="w-full h-12 text-red-400 hover:text-red-400 hover:bg-red-400/10"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Log out
-                </Button>
-              </CardContent>
-            </Card>
+
+                {/* Session */}
+                <section className="flex animate-rise items-center justify-between gap-4 rounded-3xl border border-line bg-surface p-6 shadow-soft [animation-delay:120ms]">
+                  <div>
+                    <h3 className="text-sm font-medium text-fg">Sign out</h3>
+                    <p className="mt-0.5 text-xs text-fg-muted">End your session on this device.</p>
+                  </div>
+                  <Button variant="outline" className="hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400" onClick={handleLogout}>
+                    <LogOut />
+                    Sign out
+                  </Button>
+                </section>
+              </div>
+            )}
           </div>
         </main>
       </div>

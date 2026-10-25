@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/protected-route";
 import Sidebar from "@/components/sidebar";
+import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -21,13 +21,50 @@ import { useToast } from "@/hooks/use-toast";
 import {
   PromptResponse,
   ChatSessionResponse,
-  ChatMessage as ChatMessageType,
   ChatMessageRequest,
 } from "@/lib/types";
 import { promptsApi, chatApi } from "@/lib/api";
 import { buildPromptMarkdown, downloadMarkdown, extractPromptText, tidyMarkdown } from "@/lib/markdown";
-import { Copy, Trash2, Send, Sparkles, User, Check, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Copy,
+  Trash2,
+  ArrowUp,
+  Sparkles,
+  Check,
+  Download,
+  ArrowDown,
+  Lightbulb,
+  FileText,
+  Layers,
+  Database,
+  KeyRound,
+  Boxes,
+} from "lucide-react";
 import Image from "next/image";
+
+type DisplayMessage = {
+  role: "user" | "assistant";
+  content: string;
+  timestamp?: string;
+  images?: string[];
+};
+
+type IdeaTab = "full" | "stack" | "env" | "db" | "phases";
+
+const UI_SUGGESTIONS = [
+  "Convert this to Next.js + Tailwind CSS",
+  "Add more detail on each component",
+  "Make the layout mobile-first",
+  "Add accessibility requirements",
+];
+
+const IDEA_SUGGESTIONS = [
+  "Break the MVP into smaller tasks",
+  "Expand the testing strategy",
+  "Suggest a cheaper hosting setup",
+  "Add authentication edge cases",
+];
 
 export default function PromptDetailPage() {
   const { promptId } = useParams<{ promptId: string }>();
@@ -36,9 +73,11 @@ export default function PromptDetailPage() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("full");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<IdeaTab>("full");
   const [activePhaseIndex, setActivePhaseIndex] = useState<number>(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: prompt, isLoading: promptLoading } = useQuery<PromptResponse>({
@@ -79,11 +118,12 @@ export default function PromptDetailPage() {
       await promptsApi.delete(promptId);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prompts"] });
       toast({
         title: "Prompt deleted",
         description: "Redirecting to dashboard...",
       });
-      router.push("/");
+      router.push("/dashboard");
     },
     onError: (error: any) => {
       toast({
@@ -95,11 +135,15 @@ export default function PromptDetailPage() {
     },
   });
 
+  const sendMessage = (text: string) => {
+    if (text.trim() && !sendMessageMutation.isPending) {
+      sendMessageMutation.mutate({ message: text.trim() });
+    }
+  };
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
-      sendMessageMutation.mutate({ message });
-    }
+    sendMessage(message);
   };
 
   const handleCopyPrompt = () => {
@@ -124,36 +168,45 @@ export default function PromptDetailPage() {
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatSession?.messages]);
+  }, [chatSession?.messages, sendMessageMutation.isPending, scrollToBottom]);
 
   // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`;
+    ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [message]);
 
   if (promptLoading || chatLoading) {
     return (
       <ProtectedRoute>
-        <div className="flex h-screen">
+        <div className="flex h-screen bg-canvas">
           <Sidebar />
-          <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
-            <div className="flex-1 flex items-center justify-center">
-              <div className="animate-pulse space-y-6 w-full max-w-3xl px-8">
-                <div className="h-8 bg-[var(--theme-background-tertiary)] rounded-xl w-1/3" />
-                <div className="h-4 bg-[var(--theme-background-tertiary)] rounded-xl w-1/2" />
-                <div className="space-y-4">
-                  <div className="h-24 bg-[var(--theme-background-tertiary)] rounded-2xl w-3/4" />
-                  <div className="h-16 bg-[var(--theme-background-tertiary)] rounded-2xl w-1/2 ml-auto" />
-                  <div className="h-24 bg-[var(--theme-background-tertiary)] rounded-2xl w-3/4" />
+          <main className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0">
+            <div className="h-14 border-b border-line" />
+            <div className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-10 sm:px-6">
+              <div className="ml-auto h-10 w-1/2 animate-pulse rounded-3xl bg-elevated" />
+              <div className="flex gap-3">
+                <div className="h-8 w-8 animate-pulse rounded-full bg-elevated" />
+                <div className="flex-1 space-y-3">
+                  <div className="h-4 w-3/4 animate-pulse rounded-lg bg-elevated" />
+                  <div className="h-4 w-full animate-pulse rounded-lg bg-elevated" />
+                  <div className="h-4 w-5/6 animate-pulse rounded-lg bg-elevated" />
+                  <div className="h-40 w-full animate-pulse rounded-2xl bg-elevated" />
                 </div>
               </div>
             </div>
@@ -166,17 +219,25 @@ export default function PromptDetailPage() {
   if (!prompt || !chatSession) {
     return (
       <ProtectedRoute>
-        <div className="flex h-screen">
+        <div className="flex h-screen bg-canvas">
           <Sidebar />
-          <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-red-400 text-xl font-medium">Prompt not found</p>
+          <main className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 pt-14 lg:pt-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-surface">
+              <FileText className="h-5 w-5 text-fg-subtle" />
             </div>
+            <p className="font-medium text-fg">Prompt not found</p>
+            <p className="text-sm text-fg-muted">It may have been deleted.</p>
+            <Button variant="outline" className="mt-2" onClick={() => router.push("/dashboard")}>
+              Back to home
+            </Button>
           </main>
         </div>
       </ProtectedRoute>
     );
   }
+
+  const isIdea = prompt.source_type === "idea";
+  const promptText = extractPromptText(prompt.generated_prompt);
 
   const firstChatMessage = chatSession.messages[0];
   const hasDuplicatePrompt =
@@ -184,58 +245,52 @@ export default function PromptDetailPage() {
     firstChatMessage.role === "assistant" &&
     firstChatMessage.content.trim() === prompt.generated_prompt.trim();
 
-  // Construct initial message matching user input (e.g. original idea text or page analysis request)
-  const initialUserMessage = (() => {
-    if (prompt.source_type === "idea" && prompt.idea_text) {
-      return {
-        role: "user" as const,
-        content: prompt.idea_text,
-        timestamp: prompt.created_at,
-      };
-    } else if (prompt.source_type !== "idea" && prompt.source_url) {
-      return {
-        role: "user" as const,
-        content: `Generate a frontend prompt from URL: ${prompt.source_url}`,
-        timestamp: prompt.created_at,
-      };
-    } else if (prompt.source_type !== "idea" && prompt.cloudinary_images.length > 0) {
-      return {
-        role: "user" as const,
-        content: `Generate a frontend prompt from uploaded image(s).`,
-        timestamp: prompt.created_at,
-      };
-    }
-    return null;
-  })();
+  // Reconstruct the user's original request so the conversation reads naturally
+  const initialUserMessage: DisplayMessage | null = isIdea
+    ? prompt.idea_text
+      ? { role: "user", content: prompt.idea_text, timestamp: prompt.created_at }
+      : null
+    : prompt.source_url || prompt.cloudinary_images.length > 0
+      ? {
+          role: "user",
+          content: prompt.source_url
+            ? `Generate a UI prompt from ${prompt.source_url}`
+            : "Generate a UI prompt from these screenshots",
+          timestamp: prompt.created_at,
+          images: prompt.cloudinary_images.map((img) => img.url),
+        }
+      : null;
 
-  const chatBaseMessages = hasDuplicatePrompt
+  const chatBaseMessages: DisplayMessage[] = hasDuplicatePrompt
     ? chatSession.messages
     : [
-        {
-          role: "assistant" as const,
-          content: extractPromptText(prompt.generated_prompt),
-          timestamp: prompt.created_at,
-        },
+        { role: "assistant", content: promptText, timestamp: prompt.created_at },
         ...chatSession.messages,
       ];
 
-  const allMessages = initialUserMessage
+  const allMessages: DisplayMessage[] = initialUserMessage
     ? [initialUserMessage, ...chatBaseMessages]
     : chatBaseMessages;
 
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: "Copied message content to clipboard.",
-    });
-  };
+  const firstAssistantIdx = allMessages.findIndex((m) => m.role === "assistant");
+  const hasFollowUps = allMessages.length - (firstAssistantIdx + 1) > 0;
+  const suggestions = isIdea ? IDEA_SUGGESTIONS : UI_SUGGESTIONS;
 
   // The first AI message is the generated prompt: export the full structured document for it.
   // Follow-up chat replies are exported as their own Markdown.
   const messageMarkdown = (content: string, isSystemPrompt: boolean) =>
     isSystemPrompt ? buildPromptMarkdown(prompt) : tidyMarkdown(content) + "\n";
+
+  const copyToClipboard = (text: string, description = "Copied to clipboard.") => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied!", description });
+  };
+
+  const copyMessage = (idx: number, content: string, isSystemPrompt: boolean) => {
+    navigator.clipboard.writeText(messageMarkdown(content, isSystemPrompt));
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 1500);
+  };
 
   const formatTime = (ts?: string) => {
     if (!ts) return "";
@@ -243,534 +298,406 @@ export default function PromptDetailPage() {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  return (
-    <ProtectedRoute>
-      <style>{`
-        @keyframes msgFadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .msg-appear {
-          animation: msgFadeIn 0.25s ease-out forwards;
-        }
-        @keyframes typingBounce {
-          0%, 80%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-6px); }
-        }
-        .typing-dot:nth-child(1) { animation: typingBounce 1.2s infinite 0s; }
-        .typing-dot:nth-child(2) { animation: typingBounce 1.2s infinite 0.2s; }
-        .typing-dot:nth-child(3) { animation: typingBounce 1.2s infinite 0.4s; }
-      `}</style>
+  const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 flex flex-col min-w-0 bg-[var(--theme-background)]">
-          <div className="flex-1 flex flex-col overflow-hidden">
+  const ideaTabs: { id: IdeaTab; label: string; icon: React.ElementType; show: boolean }[] = [
+    { id: "full", label: "Blueprint", icon: FileText, show: true },
+    { id: "stack", label: "Stack", icon: Boxes, show: !!prompt.recommended_stack && Object.keys(prompt.recommended_stack).length > 0 },
+    { id: "env", label: ".env", icon: KeyRound, show: !!prompt.env_variables?.length },
+    { id: "db", label: "Database", icon: Database, show: !!prompt.db_schemas?.length },
+    { id: "phases", label: "Roadmap", icon: Layers, show: !!prompt.phases?.length },
+  ];
 
-            {/* ── Chat Header ─────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[var(--theme-border)] mt-16 lg:mt-0 bg-[var(--theme-background-secondary)] backdrop-blur-md shadow-sm">
-              <div className="flex items-center gap-3 min-w-0">
-                {/* AI Avatar with online indicator */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center shadow-md">
-                    <Sparkles className="h-5 w-5 text-[var(--theme-accent-text)]" />
-                  </div>
-                  {/* Online dot */}
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[var(--theme-background-secondary)] shadow-sm" />
-                </div>
+  const renderIdeaContent = () => {
+    const blueprint = extractPromptText(prompt.full_prompt || prompt.generated_prompt);
+    switch (activeTab) {
+      case "full":
+        return <Markdown content={blueprint} />;
 
-                <div className="min-w-0">
-                  <h1 className="text-sm font-bold truncate text-[var(--theme-text)] leading-tight">
-                    {prompt.title}
-                  </h1>
-                  <p className="text-xs text-emerald-400 font-medium mt-0.5 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    PromptCraft AI · Active now
-                  </p>
+      case "stack":
+        return (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {Object.entries(prompt.recommended_stack ?? {}).map(([category, techs]) => (
+              <div key={category} className="rounded-xl border border-line bg-canvas/60 p-4">
+                <div className="mb-3 text-xs font-medium capitalize text-fg-muted">{category}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {techs.map((tech, i) => (
+                    <span key={i} className="rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
+                      {tech}
+                    </span>
+                  ))}
                 </div>
               </div>
+            ))}
+          </div>
+        );
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyPrompt}
-                  className="h-9 w-9 text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)] rounded-xl transition-all"
-                  title="Copy generated prompt"
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4 text-emerald-400" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleDownloadPrompt}
-                  className="h-9 w-9 text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)] rounded-xl transition-all"
-                  title="Download as prompt.md"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-[var(--theme-text-secondary)] hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                      title="Delete prompt"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-2xl max-w-sm sm:max-w-md mx-4">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl">Delete Prompt</DialogTitle>
-                      <DialogDescription className="text-[var(--theme-text-secondary)]">
-                        Are you sure you want to delete this prompt? This action cannot be undone.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-3 mt-6">
-                      <Button
-                        variant="outline"
-                        className="h-10 bg-[var(--theme-background-tertiary)] hover:bg-[var(--theme-border-hover)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-xl"
-                        onClick={(e) => {
-                          (e.target as HTMLElement).closest("dialog")?.close();
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => deleteMutation.mutate()}
-                        disabled={deleteMutation.isPending}
-                        className="h-10 rounded-xl"
-                      >
-                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+      case "env":
+        return (
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const envStr = prompt.env_variables
+                    ?.map((v) => `# ${v.description}\n${v.key}=${v.example}`)
+                    .join("\n\n");
+                  if (envStr) copyToClipboard(envStr, "Copied .env template.");
+                }}
+              >
+                <Copy className="h-3 w-3" />
+                Copy .env template
+              </Button>
             </div>
+            <div className="divide-y divide-line overflow-hidden rounded-xl border border-line">
+              {prompt.env_variables?.map((env, i) => (
+                <div key={i} className="grid gap-1 bg-canvas/60 px-4 py-3 sm:grid-cols-[minmax(0,14rem)_1fr] sm:gap-4">
+                  <code className="truncate font-mono text-xs font-semibold text-brand">{env.key}</code>
+                  <div className="min-w-0">
+                    <p className="text-sm text-fg">{env.description}</p>
+                    <code className="mt-1 block truncate font-mono text-[11px] text-fg-subtle">{env.example}</code>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
 
-            {/* ── Source images strip ──────────────────────────────────── */}
-            {prompt.cloudinary_images.length > 0 && (
-              <div className="px-4 sm:px-6 py-2.5 border-b border-[var(--theme-border)] bg-[var(--theme-background-secondary)]">
-                <div className="flex gap-2.5 overflow-x-auto pb-1">
-                  {prompt.cloudinary_images.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 rounded-xl overflow-hidden border border-[var(--theme-border)] hover:border-[var(--theme-accent-1)] transition-all hover:scale-105"
-                    >
-                      <Image
-                        src={img.url}
-                        alt={`Source image ${idx + 1}`}
-                        fill
-                        className="object-cover"
-                      />
+      case "db":
+        return (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {prompt.db_schemas?.map((schema, i) => (
+              <div key={i} className="overflow-hidden rounded-xl border border-line bg-canvas/60">
+                <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
+                  <Database className="h-3.5 w-3.5 text-brand" />
+                  <span className="font-mono text-xs font-semibold text-fg">{schema.name}</span>
+                  <span className="ml-auto text-[11px] text-fg-subtle">{schema.fields.length} fields</span>
+                </div>
+                <div className="divide-y divide-line">
+                  {schema.fields.map((f, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-3 px-4 py-2 text-xs">
+                      <span className="truncate font-mono text-fg-muted">{f.name}</span>
+                      <div className="flex flex-shrink-0 items-center gap-1.5">
+                        <span className="rounded-md bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-fg-muted">{f.type}</span>
+                        {f.required && (
+                          <span className="rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-400">required</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
+            ))}
+          </div>
+        );
 
-            {/* ── Messages ─────────────────────────────────────────────── */}
-            <ScrollArea className="flex-1">
-              <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-                {allMessages.map((msg, idx) => {
-                  const isAssistant = msg.role === "assistant";
-                  const firstAssistantIdx = allMessages.findIndex((m) => m.role === "assistant");
-                  const isSystemPrompt = idx === firstAssistantIdx && isAssistant;
-
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`msg-appear flex w-full gap-2.5 items-end ${
-                        isAssistant ? "justify-start" : "justify-end"
-                      }`}
-                      style={{ animationDelay: `${idx * 0.04}s` }}
-                    >
-                      {/* AI Avatar (left side) */}
-                      {isAssistant && (
-                        <div className="flex-shrink-0 mb-1">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center shadow-sm">
-                            <Sparkles className="h-4 w-4 text-[var(--theme-accent-text)]" />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Bubble */}
-                      <div className={`relative group/msg max-w-[82%] sm:max-w-[72%] ${isAssistant ? "text-left" : "text-right"}`}>
-                        {/* System prompt badge */}
-                        {isSystemPrompt && (
-                          <div className="flex items-center gap-1.5 mb-1.5 px-1">
-                            <span className="text-[10px] font-bold text-[var(--theme-accent-1)] uppercase tracking-widest flex items-center gap-1">
-                              <Sparkles className="h-3 w-3 animate-pulse" />
-                              {prompt.source_type === "idea" ? "Generated Idea Architecture & Prompt" : "Generated UI/UX Prompt"}
-                            </span>
-                          </div>
-                        )}
-
-                        <div
-                          className={`relative px-4 py-3 text-sm sm:text-[0.9rem] leading-relaxed break-words transition-all duration-200 ${
-                            isAssistant
-                              ? "bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] text-[var(--theme-text)] rounded-2xl rounded-bl-md hover:border-[var(--theme-border-hover)] pr-10 shadow-sm"
-                              : "bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] text-[var(--theme-accent-text)] rounded-2xl rounded-br-md shadow-md hover:brightness-105"
-                          }`}
-                        >
-                          {/* Copy / download (.md) buttons for AI messages */}
-                          {isAssistant && (
-                            <div className="absolute right-2.5 top-2.5 z-10 flex flex-col gap-1 opacity-0 group-hover/msg:opacity-100 transition-all">
-                              <button
-                                onClick={() => copyToClipboard(messageMarkdown(msg.content, isSystemPrompt))}
-                                className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)]"
-                                title="Copy as Markdown"
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => downloadMarkdown(messageMarkdown(msg.content, isSystemPrompt))}
-                                className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)]"
-                                title="Download as prompt.md"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-
-                          {isSystemPrompt && prompt.source_type === "idea" ? (
-                            <div className="w-full space-y-4 py-2">
-                              {/* Main tabs selector */}
-                              <div className="flex flex-wrap gap-1.5 border-b border-[var(--theme-border)] pb-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveTab("full")}
-                                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                    activeTab === "full"
-                                      ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
-                                      : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
-                                  }`}
-                                >
-                                  Full Prompt
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveTab("stack")}
-                                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                    activeTab === "stack"
-                                      ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
-                                      : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
-                                  }`}
-                                >
-                                  Recommended Stack
-                                </button>
-                                {prompt.env_variables && prompt.env_variables.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveTab("env")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                      activeTab === "env"
-                                        ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
-                                        : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
-                                    }`}
-                                  >
-                                    .env Config
-                                  </button>
-                                )}
-                                {prompt.db_schemas && prompt.db_schemas.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveTab("db")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                      activeTab === "db"
-                                        ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
-                                        : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
-                                    }`}
-                                  >
-                                    DB Schemas
-                                  </button>
-                                )}
-                                {prompt.phases && prompt.phases.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveTab("phases")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                      activeTab === "phases"
-                                        ? "bg-[var(--theme-accent-1)] text-[var(--theme-accent-text)]"
-                                        : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)]"
-                                    }`}
-                                  >
-                                    Phased Roadmap
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Tab Contents */}
-                              <div className="bg-[var(--theme-background-tertiary)] border border-[var(--theme-border)] rounded-2xl p-4 min-h-[200px]">
-                                
-                                {/* 1. Full Prompt Tab */}
-                                {activeTab === "full" && (
-                                  <div className="space-y-4 relative group/tab">
-                                    <div className="flex justify-between items-center">
-                                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
-                                        Full Application Prompt
-                                      </h4>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => copyToClipboard(extractPromptText(prompt.full_prompt || prompt.generated_prompt))}
-                                        className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                        Copy Prompt
-                                      </Button>
-                                    </div>
-                                    <div className="text-xs sm:text-sm text-[var(--theme-text)] whitespace-pre-wrap max-h-[400px] overflow-y-auto pr-1">
-                                      {extractPromptText(prompt.full_prompt || prompt.generated_prompt)}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 2. Recommended Stack Tab */}
-                                {activeTab === "stack" && (
-                                  <div className="space-y-4">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
-                                      Recommended Tech Stack
-                                    </h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                      {prompt.recommended_stack &&
-                                        Object.entries(prompt.recommended_stack).map(([category, techs]) => (
-                                          <div key={category} className="p-3 bg-[var(--theme-background)] rounded-xl border border-[var(--theme-border)]">
-                                            <span className="text-[10px] font-bold text-[var(--theme-accent-1)] uppercase tracking-wider block mb-2">
-                                              {category}
-                                            </span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                              {techs.map((tech: string, i: number) => (
-                                                <span key={i} className="px-2 py-0.5 rounded bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] text-xs text-[var(--theme-text)]">
-                                                  {tech}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 3. Env Variables Tab */}
-                                {activeTab === "env" && prompt.env_variables && (
-                                  <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
-                                        Environment Variables (.env)
-                                      </h4>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => {
-                                          const envStr = prompt.env_variables
-                                            ?.map((v) => `# ${v.description}\n${v.key}=${v.example}`)
-                                            .join("\n\n");
-                                          if (envStr) copyToClipboard(envStr);
-                                        }}
-                                        className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                        Copy .env Template
-                                      </Button>
-                                    </div>
-
-                                    <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-                                      {prompt.env_variables.map((env, i) => (
-                                        <div key={i} className="p-3 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-xl space-y-1 text-left">
-                                          <div className="flex flex-wrap justify-between items-center gap-2">
-                                            <code className="text-xs font-bold text-[var(--theme-accent-1)] font-mono">{env.key}</code>
-                                            <code className="text-[10px] text-[var(--theme-text-tertiary)] font-mono">Example: {env.example}</code>
-                                          </div>
-                                          <p className="text-[11px] text-[var(--theme-text-secondary)]">
-                                            {env.description}
-                                          </p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 4. DB Schemas Tab */}
-                                {activeTab === "db" && prompt.db_schemas && (
-                                  <div className="space-y-4">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
-                                      Database Schema Blueprint
-                                    </h4>
-                                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                                      {prompt.db_schemas.map((schema, i) => (
-                                        <div key={i} className="p-4 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-xl space-y-3 text-left">
-                                          <div className="flex items-center gap-1.5 border-b border-[var(--theme-border)] pb-1.5">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                                            <span className="font-bold text-xs text-[var(--theme-text)]">{schema.name}</span>
-                                          </div>
-                                          <div className="space-y-2">
-                                            {schema.fields.map((f, idx) => (
-                                              <div key={idx} className="flex justify-between items-center text-xs">
-                                                <span className="font-semibold font-mono text-[var(--theme-text-secondary)]">{f.name}</span>
-                                                <div className="flex items-center gap-2">
-                                                  <span className="px-1.5 py-0.5 rounded bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] text-[10px] font-mono text-[var(--theme-text-tertiary)]">
-                                                    {f.type}
-                                                  </span>
-                                                  {f.required && (
-                                                    <span className="px-1 py-0.5 rounded text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-bold uppercase tracking-wider">
-                                                      Required
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 5. Phased Breakdown Tab */}
-                                {activeTab === "phases" && prompt.phases && (
-                                  <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-secondary)]">
-                                        Step-by-Step Phased Roadmap
-                                      </h4>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => {
-                                          const currentPhase = prompt.phases?.[activePhaseIndex];
-                                          if (currentPhase) {
-                                            copyToClipboard(currentPhase.content);
-                                          }
-                                        }}
-                                        className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                        Copy Current Phase Prompt
-                                      </Button>
-                                    </div>
-
-                                    {/* Phase selector tabs */}
-                                    <div className="flex gap-1 overflow-x-auto pb-1.5 border-b border-[var(--theme-border)]">
-                                      {prompt.phases.map((phase, i) => (
-                                        <button
-                                          key={i}
-                                          type="button"
-                                          onClick={() => setActivePhaseIndex(i)}
-                                          className={`px-3 py-1 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-all ${
-                                            activePhaseIndex === i
-                                              ? "bg-[var(--theme-accent-2)] text-[var(--theme-accent-text)]"
-                                              : "bg-[var(--theme-background)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-background-secondary)]"
-                                          }`}
-                                        >
-                                          Phase {phase.phase_number}: {phase.title}
-                                        </button>
-                                      ))}
-                                    </div>
-
-                                    {/* Phase Prompt content */}
-                                    <div className="text-xs sm:text-sm text-[var(--theme-text)] whitespace-pre-wrap max-h-[300px] overflow-y-auto pr-1 text-left">
-                                      {prompt.phases?.[activePhaseIndex]?.content}
-                                    </div>
-                                  </div>
-                                )}
-
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="whitespace-pre-wrap">
-                              {isSystemPrompt ? extractPromptText(msg.content) : msg.content}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Timestamp */}
-                        {msg.timestamp && (
-                          <p className={`text-[10px] text-[var(--theme-text-tertiary)] mt-1 px-1 ${isAssistant ? "text-left" : "text-right"}`}>
-                            {formatTime(msg.timestamp)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* User Avatar (right side) */}
-                      {!isAssistant && (
-                        <div className="flex-shrink-0 mb-1">
-                          <div className="w-8 h-8 rounded-full bg-[var(--theme-background-tertiary)] flex items-center justify-center border border-[var(--theme-border)] shadow-sm">
-                            <User className="h-4 w-4 text-[var(--theme-text-secondary)]" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Typing indicator when AI is responding */}
-                {sendMessageMutation.isPending && (
-                  <div className="msg-appear flex gap-2.5 items-end justify-start">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center shadow-sm flex-shrink-0 mb-1">
-                      <Sparkles className="h-4 w-4 text-[var(--theme-accent-text)]" />
-                    </div>
-                    <div className="px-4 py-3.5 rounded-2xl rounded-bl-md bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] shadow-sm flex items-center gap-1.5">
-                      <span className="typing-dot w-2 h-2 rounded-full bg-[var(--theme-accent-1)] inline-block" />
-                      <span className="typing-dot w-2 h-2 rounded-full bg-[var(--theme-accent-1)] inline-block" />
-                      <span className="typing-dot w-2 h-2 rounded-full bg-[var(--theme-accent-1)] inline-block" />
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
-
-            {/* ── Input bar ────────────────────────────────────────────── */}
-            <div className="px-4 sm:px-6 py-4 border-t border-[var(--theme-border)] bg-[var(--theme-background-secondary)] backdrop-blur-md">
-              <div className="w-full max-w-3xl mx-auto">
-                <form onSubmit={handleSendMessage} className="flex items-end gap-2.5">
-                  <div className="flex-1 relative">
-                    <Textarea
-                      ref={textareaRef}
-                      placeholder="Say something..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      className="w-full min-h-[46px] py-3 pl-4 pr-4 resize-none bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-1 focus:ring-[var(--theme-accent-1)] focus-visible:ring-0 focus:border-[var(--theme-accent-1)] rounded-2xl text-sm sm:text-[0.9rem] transition-all overflow-hidden"
-                      rows={1}
-                      style={{ height: "46px" }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage(e);
-                        }
-                      }}
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="h-[46px] w-[46px] flex-shrink-0 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] rounded-xl shadow-md transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+      case "phases": {
+        const phase = prompt.phases?.[activePhaseIndex];
+        return (
+          <div className="grid gap-4 md:grid-cols-[13rem_1fr]">
+            <ol className="flex gap-1.5 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+              {prompt.phases?.map((p, i) => (
+                <li key={i} className="flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActivePhaseIndex(i)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs transition-colors",
+                      activePhaseIndex === i ? "bg-elevated text-fg" : "text-fg-muted hover:bg-elevated/60"
+                    )}
                   >
-                    <Send className="h-4.5 w-4.5" />
+                    <span
+                      className={cn(
+                        "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                        activePhaseIndex === i ? "bg-brand-gradient text-brand-fg" : "border border-line bg-surface"
+                      )}
+                    >
+                      {p.phase_number}
+                    </span>
+                    <span className="line-clamp-2 font-medium">{p.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            {phase && (
+              <div className="min-w-0">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold text-fg">
+                    Phase {phase.phase_number}: {phase.title}
+                  </h4>
+                  <Button size="sm" variant="outline" onClick={() => copyToClipboard(phase.content, "Copied phase prompt.")}>
+                    <Copy className="h-3 w-3" />
+                    Copy
                   </Button>
-                </form>
+                </div>
+                <Markdown content={phase.content} />
+              </div>
+            )}
+          </div>
+        );
+      }
+    }
+  };
 
-                <p className="text-[10px] text-[var(--theme-text-tertiary)] mt-2 text-center select-none">
-                  Press <kbd className="px-1 py-0.5 rounded bg-[var(--theme-background-tertiary)] border border-[var(--theme-border)] font-mono text-[9px]">Enter</kbd> to send · <kbd className="px-1 py-0.5 rounded bg-[var(--theme-background-tertiary)] border border-[var(--theme-border)] font-mono text-[9px]">Shift+Enter</kbd> for new line
+  return (
+    <ProtectedRoute>
+      <div className="flex h-screen overflow-hidden bg-canvas">
+        <Sidebar />
+        <main className="relative flex min-w-0 flex-1 flex-col pt-14 lg:pt-0">
+          {/* ── Header ─────────────────────────────────────────── */}
+          <header className="glass z-20 flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-line px-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-line bg-surface">
+                {isIdea ? <Lightbulb className="h-4 w-4 text-brand" /> : <Sparkles className="h-4 w-4 text-brand" />}
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold text-fg">{prompt.title}</h1>
+                <p className="text-[11px] text-fg-subtle">
+                  {isIdea ? "Idea blueprint" : "UI/UX prompt"} ·{" "}
+                  {new Date(prompt.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </p>
               </div>
             </div>
 
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={handleCopyPrompt} className="h-8 gap-1.5" title="Copy as Markdown">
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadPrompt} className="h-8 gap-1.5" title="Download as prompt.md">
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">prompt.md</span>
+              </Button>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-500/10 hover:text-red-400" title="Delete prompt">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Delete this prompt?</DialogTitle>
+                    <DialogDescription className="text-fg-muted">
+                      The prompt and its chat history will be permanently deleted. This can&apos;t be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter className="mt-2 gap-2">
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button
+                      variant="destructive"
+                      onClick={() => deleteMutation.mutate()}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </header>
+
+          {/* ── Messages ─────────────────────────────────────────── */}
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-48 pt-8 sm:px-6">
+              {allMessages.map((msg, idx) => {
+                const isAssistant = msg.role === "assistant";
+                const isSystemPrompt = isAssistant && idx === firstAssistantIdx;
+
+                if (!isAssistant) {
+                  return (
+                    <div key={idx} className="flex animate-rise flex-col items-end gap-2">
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="flex max-w-[85%] flex-wrap justify-end gap-2">
+                          {msg.images.map((src, i) => (
+                            <a
+                              key={i}
+                              href={src}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="relative h-20 w-20 overflow-hidden rounded-xl border border-line transition-transform hover:scale-[1.03] sm:h-24 sm:w-24"
+                            >
+                              <Image src={src} alt={`Source image ${i + 1}`} fill className="object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl rounded-br-lg bg-elevated px-4 py-2.5 text-[0.9375rem] leading-relaxed text-fg">
+                        {msg.content}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={idx} className="group/msg flex animate-rise gap-3 sm:gap-4">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand-gradient shadow-glow">
+                      <Sparkles className="h-3.5 w-3.5 text-brand-fg" />
+                    </div>
+
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      {isSystemPrompt ? (
+                        <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-soft">
+                          {/* Card header */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-medium text-brand">
+                                <Sparkles className="h-3 w-3" />
+                                {isIdea ? "Architecture blueprint" : "Generated UI/UX prompt"}
+                              </span>
+                              <span className="text-[11px] text-fg-subtle">
+                                {wordCount(isIdea ? prompt.full_prompt || msg.content : msg.content).toLocaleString()} words
+                              </span>
+                            </div>
+                          </div>
+
+                          {isIdea ? (
+                            <>
+                              <div className="flex gap-1 overflow-x-auto border-b border-line px-3 py-2">
+                                {ideaTabs.filter((t) => t.show).map(({ id, label, icon: Icon }) => (
+                                  <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => setActiveTab(id)}
+                                    className={cn(
+                                      "flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                                      activeTab === id ? "bg-elevated text-fg" : "text-fg-muted hover:text-fg"
+                                    )}
+                                  >
+                                    <Icon className={cn("h-3.5 w-3.5", activeTab === id && "text-brand")} />
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="max-h-[60vh] overflow-y-auto px-5 py-5">{renderIdeaContent()}</div>
+                            </>
+                          ) : (
+                            <div className="max-h-[60vh] overflow-y-auto px-5 py-5">
+                              <Markdown content={msg.content} />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <Markdown content={msg.content} />
+                      )}
+
+                      {/* Message actions */}
+                      <div className="mt-2 flex items-center gap-0.5 opacity-60 transition-opacity group-hover/msg:opacity-100">
+                        <button
+                          onClick={() => copyMessage(idx, msg.content, isSystemPrompt)}
+                          className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-subtle transition-colors hover:bg-elevated hover:text-fg"
+                          title="Copy as Markdown"
+                        >
+                          {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedIdx === idx ? "Copied" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => downloadMarkdown(messageMarkdown(msg.content, isSystemPrompt))}
+                          className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-subtle transition-colors hover:bg-elevated hover:text-fg"
+                          title="Download as prompt.md"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          .md
+                        </button>
+                        {msg.timestamp && (
+                          <span className="ml-2 text-[11px] text-fg-subtle">{formatTime(msg.timestamp)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Pending: echo the user's message and show a thinking indicator */}
+              {sendMessageMutation.isPending && (
+                <>
+                  <div className="flex animate-rise justify-end">
+                    <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl rounded-br-lg bg-elevated px-4 py-2.5 text-[0.9375rem] leading-relaxed text-fg">
+                      {sendMessageMutation.variables?.message}
+                    </div>
+                  </div>
+                  <div className="flex animate-rise items-center gap-3 sm:gap-4">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand-gradient shadow-glow">
+                      <Sparkles className="h-3.5 w-3.5 animate-pulse text-brand-fg" />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {[0, 150, 300].map((delay) => (
+                        <span
+                          key={delay}
+                          className="h-1.5 w-1.5 animate-bounce rounded-full bg-fg-subtle"
+                          style={{ animationDelay: `${delay}ms` }}
+                        />
+                      ))}
+                      <span className="ml-1.5 text-sm text-fg-subtle">Thinking</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── Composer ─────────────────────────────────────────── */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-canvas via-canvas/95 to-transparent pt-10">
+            <div className="pointer-events-auto mx-auto w-full max-w-3xl px-4 pb-4 sm:px-6">
+              {showScrollDown && (
+                <button
+                  onClick={() => scrollToBottom()}
+                  className="absolute -top-2 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-line bg-surface text-fg-muted shadow-soft transition-colors hover:text-fg"
+                  aria-label="Scroll to latest"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+              )}
+
+              {!hasFollowUps && !sendMessageMutation.isPending && (
+                <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => sendMessage(s)}
+                      className="flex-shrink-0 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-fg-muted transition-colors hover:border-brand/40 hover:text-fg"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <form
+                onSubmit={handleSendMessage}
+                className="flex items-end gap-2 rounded-3xl border border-line bg-surface p-2 pl-4 shadow-lift transition-colors focus-within:border-brand/50"
+              >
+                <textarea
+                  ref={textareaRef}
+                  placeholder="Ask to refine, expand, or convert this prompt..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={1}
+                  className="max-h-[200px] min-h-[40px] flex-1 resize-none bg-transparent py-2 text-[0.9375rem] text-fg outline-none placeholder:text-fg-subtle"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage(e);
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!message.trim() || sendMessageMutation.isPending}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-gradient text-brand-fg shadow-glow transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none"
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+              </form>
+              <p className="mt-2 hidden select-none text-center text-[11px] text-fg-subtle sm:block">
+                <span className="kbd">Enter</span> to send · <span className="kbd">Shift + Enter</span> for a new line
+              </p>
+            </div>
           </div>
         </main>
       </div>

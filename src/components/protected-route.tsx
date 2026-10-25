@@ -37,7 +37,7 @@ export default function ProtectedRoute({
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--theme-background)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-brand/30 border-t-brand animate-spin" />
           <p className="text-sm text-[var(--theme-text-secondary)]">Verifying session...</p>
         </div>
       </div>

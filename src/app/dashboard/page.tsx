@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProtectedRoute from "@/components/protected-route";
 import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -17,20 +17,39 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { PaginatedPromptResponse, PromptResponse } from "@/lib/types";
-import { promptsApi } from "@/lib/api";
-import { Plus, Trash2, Sparkles, Link as LinkIcon, Image as ImageIcon, Lightbulb } from "lucide-react";
+import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
+import { promptsApi, authApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import {
+  Trash2,
+  Sparkles,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Lightbulb,
+  ArrowUpRight,
+  Wand2,
+  Search,
+  FileText,
+} from "lucide-react";
+
+type Filter = "all" | "ui" | "idea";
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
 
   const { data, isLoading, error } = useQuery<PaginatedPromptResponse>({
     queryKey: ["prompts"],
     queryFn: async () => {
       return await promptsApi.getAll(1, 100);
     },
+  });
+
+  const { data: user } = useQuery<UserResponse>({
+    queryKey: ["user"],
+    queryFn: () => authApi.getMe(),
   });
 
   const deleteMutation = useMutation({
@@ -54,172 +73,227 @@ export default function DashboardPage() {
     },
   });
 
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
+  const prompts = data?.prompts ?? [];
+  const ideaCount = prompts.filter((p) => p.source_type === "idea").length;
+
+  const visiblePrompts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return prompts.filter((p) => {
+      if (filter === "idea" && p.source_type !== "idea") return false;
+      if (filter === "ui" && p.source_type === "idea") return false;
+      return !query || p.title.toLowerCase().includes(query);
+    });
+  }, [prompts, filter, search]);
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+    if (diffInSeconds < 60) return "just now";
     if (diffInSeconds < 3600)
       return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400)
       return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 86400 * 30)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   };
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  })();
+
+  const sourceMeta = (p: PromptResponse) =>
+    p.source_type === "idea"
+      ? { icon: Lightbulb, label: "Idea" }
+      : p.source_type === "url"
+        ? { icon: LinkIcon, label: "Website" }
+        : p.source_type === "image"
+          ? { icon: ImageIcon, label: "Screenshots" }
+          : { icon: Sparkles, label: "Website + images" };
+
+  const stats = [
+    { label: "Total prompts", value: prompts.length },
+    { label: "UI prompts", value: prompts.length - ideaCount },
+    { label: "Idea blueprints", value: ideaCount },
+    ...(user && user.role !== "admin"
+      ? [{ label: "Remaining", value: Math.max(0, user.max_prompts - user.prompts_used) }]
+      : []),
+  ];
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen">
+      <div className="flex h-screen overflow-hidden bg-canvas">
         <Sidebar />
-        <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)]">
-          <div className="flex-1 flex flex-col items-center px-4 pt-20 lg:pt-8 pb-8 overflow-y-auto">
-            {isLoading ? (
-              <div className="space-y-6 w-full max-w-4xl">
-                <div className="h-10 bg-[var(--theme-background-tertiary)] rounded-xl animate-pulse" />
-                <div className="h-16 bg-[var(--theme-background-tertiary)] rounded-xl animate-pulse" />
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-24 bg-[var(--theme-background-tertiary)] rounded-xl animate-pulse"
+        <main className="ambient flex-1 overflow-y-auto pt-14 lg:pt-0">
+          <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8 lg:py-12">
+            {/* Greeting */}
+            <div className="animate-rise">
+              <p className="text-sm text-fg-muted">{greeting}{user?.username ? `, ${user.username}` : ""}</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+                What are we building <span className="text-gradient">today?</span>
+              </h1>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-8 grid animate-rise grid-cols-1 gap-4 [animation-delay:60ms] sm:grid-cols-2">
+              <Link href="/generate" className="card-interactive group relative overflow-hidden p-5">
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand/15 blur-2xl transition-opacity group-hover:opacity-100 sm:opacity-60" />
+                <div className="relative flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient shadow-glow">
+                    <Wand2 className="h-5 w-5 text-brand-fg" />
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 text-fg-subtle transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-fg" />
+                </div>
+                <h2 className="relative mt-4 font-semibold text-fg">UI/UX prompt</h2>
+                <p className="relative mt-1 text-sm text-fg-muted">
+                  Turn a website or screenshots into a detailed prompt for v0, Cursor, Lovable and more.
+                </p>
+              </Link>
+
+              <Link href="/idea" className="card-interactive group relative overflow-hidden p-5">
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-2/15 blur-2xl transition-opacity group-hover:opacity-100 sm:opacity-60" />
+                <div className="relative flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-elevated">
+                    <Lightbulb className="h-5 w-5 text-brand" />
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 text-fg-subtle transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-fg" />
+                </div>
+                <h2 className="relative mt-4 font-semibold text-fg">Idea blueprint</h2>
+                <p className="relative mt-1 text-sm text-fg-muted">
+                  Describe an app idea and get a full build plan: stack, schemas, env vars and phases.
+                </p>
+              </Link>
+            </div>
+
+            {/* Stats */}
+            {!isLoading && !error && (
+              <div className="mt-4 grid animate-rise grid-cols-2 gap-3 [animation-delay:120ms] sm:grid-cols-4">
+                {stats.map((s) => (
+                  <div key={s.label} className="rounded-2xl border border-line bg-surface/60 px-4 py-3">
+                    <div className="text-2xl font-semibold tabular-nums tracking-tight text-fg">{s.value}</div>
+                    <div className="mt-0.5 text-xs text-fg-muted">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent prompts */}
+            <section className="mt-12">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-lg font-semibold text-fg">Recent prompts</h2>
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-xl border border-line bg-surface p-0.5">
+                    {(["all", "ui", "idea"] as Filter[]).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className={cn(
+                          "rounded-lg px-3 py-1 text-xs font-medium transition-colors",
+                          filter === f ? "bg-elevated text-fg" : "text-fg-muted hover:text-fg"
+                        )}
+                      >
+                        {f === "all" ? "All" : f === "ui" ? "UI" : "Ideas"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative flex-1 sm:w-52 sm:flex-none">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search prompts"
+                      className="h-8 w-full rounded-xl border border-line bg-surface pl-8 pr-3 text-xs text-fg outline-none placeholder:text-fg-subtle focus:border-brand/50"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {isLoading ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-32 animate-pulse rounded-2xl bg-elevated" />
                   ))}
                 </div>
-              </div>
-            ) : error ? (
-              <div className="text-center">
-                <p className="text-red-400 text-lg mb-4">Failed to load prompts</p>
-              </div>
-            ) : (
-              <div className="w-full max-w-4xl">
-                <div className="text-center mb-12">
-                  <h1 className="text-4xl font-bold mb-3 text-[var(--theme-text)]">Welcome back!</h1>
-                  <p className="text-[var(--theme-text-secondary)] text-lg">Generate UI/UX prompts from URLs and images</p>
+              ) : error ? (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-center text-sm text-red-400">
+                  Failed to load prompts
                 </div>
-
-                <div className="flex flex-col sm:flex-row gap-4 mb-12 justify-center">
-                  <Button
-                    asChild
-                    className="h-20 px-6 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Link href="/generate">
-                      <Plus className="h-6 w-6 mr-3" />
-                      <div className="flex flex-col items-start">
-                        <span className="text-lg">UI/UX Prompt Generator</span>
-                        <span className="text-xs opacity-80">From URL or Screenshots</span>
-                      </div>
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="h-20 px-6 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
-                  >
-                    <Link href="/idea">
-                      <Lightbulb className="h-6 w-6 mr-3 text-yellow-400 animate-pulse" />
-                      <div className="flex flex-col items-start">
-                        <span className="text-lg">Idea Prompt Generator</span>
-                        <span className="text-xs text-[var(--theme-text-secondary)]">From Application Idea</span>
-                      </div>
-                    </Link>
-                  </Button>
+              ) : visiblePrompts.length === 0 ? (
+                <div className="flex flex-col items-center rounded-2xl border border-dashed border-line px-6 py-14 text-center">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface">
+                    <FileText className="h-5 w-5 text-fg-subtle" />
+                  </div>
+                  <p className="mt-4 font-medium text-fg">
+                    {prompts.length === 0 ? "No prompts yet" : "Nothing matches"}
+                  </p>
+                  <p className="mt-1 text-sm text-fg-muted">
+                    {prompts.length === 0
+                      ? "Create your first prompt to see it here."
+                      : "Try a different search or filter."}
+                  </p>
+                  {prompts.length === 0 && (
+                    <Button asChild className="mt-5">
+                      <Link href="/generate">
+                        <Sparkles />
+                        Create a prompt
+                      </Link>
+                    </Button>
+                  )}
                 </div>
-
-                {data?.prompts && data.prompts.length > 0 && (
-                  <div className="space-y-6">
-                    <h2 className="text-xl font-semibold text-[var(--theme-text)]">Your Recent Prompts</h2>
-                    <div className="space-y-3">
-                      {data?.prompts.map((prompt: PromptResponse) => (
-                        <div
-                          key={prompt.id}
-                          className="group flex items-center gap-4 p-6 bg-[var(--theme-background-tertiary)]/50 rounded-xl border border-[var(--theme-border)] hover:border-[var(--theme-accent-1)]/50 hover:bg-[var(--theme-background-tertiary)] transition-all"
-                        >
-                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
-                            {prompt.source_type === "idea" ? (
-                              <Lightbulb className="h-6 w-6 text-[var(--theme-accent-text)]" />
-                            ) : (
-                              <Sparkles className="h-6 w-6 text-[var(--theme-accent-text)]" />
-                            )}
-                          </div>
-                          <Button
-                            asChild
-                            variant="ghost"
-                            className="flex-1 justify-start p-0 h-auto hover:bg-transparent text-left"
-                          >
-                            <Link href={`/prompts/${prompt.id}`}>
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg text-[var(--theme-text)] truncate">{prompt.title}</h3>
-                                <div className="flex items-center gap-3 mt-1">
-                                  <span className="text-xs text-[var(--theme-text-secondary)] flex items-center gap-1">
-                                    {prompt.source_type === "url" ? (
-                                      <LinkIcon className="h-3 w-3" />
-                                    ) : prompt.source_type === "idea" ? (
-                                      <Lightbulb className="h-3 w-3 text-yellow-400" />
-                                    ) : (
-                                      <ImageIcon className="h-3 w-3" />
-                                    )}
-                                    {prompt.source_type}
-                                  </span>
-                                  <span className="text-xs text-[var(--theme-text-tertiary)]">
-                                    {formatRelativeTime(prompt.created_at)}
-                                  </span>
-                                </div>
-                              </div>
-                            </Link>
-                          </Button>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {visiblePrompts.map((prompt) => {
+                    const { icon: Icon, label } = sourceMeta(prompt);
+                    return (
+                      <div key={prompt.id} className="card-interactive group relative flex flex-col p-4">
+                        <Link href={`/prompts/${prompt.id}`} className="absolute inset-0 rounded-2xl" aria-label={prompt.title} />
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/60 px-2 py-0.5 text-[11px] text-fg-muted">
+                            <Icon className="h-3 w-3" />
+                            {label}
+                          </span>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] transition-all"
+                              <button
+                                className="relative z-10 flex h-7 w-7 items-center justify-center rounded-lg text-fg-subtle opacity-100 transition-all hover:bg-red-500/10 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100"
+                                title="Delete prompt"
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </DialogTrigger>
-                            <DialogContent className="bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-2xl">
+                            <DialogContent className="max-w-sm">
                               <DialogHeader>
-                                <DialogTitle>Delete Prompt</DialogTitle>
-                                <DialogDescription className="text-[var(--theme-text-secondary)]">
-                                  Are you sure you want to delete this prompt? This
-                                  action cannot be undone.
+                                <DialogTitle>Delete this prompt?</DialogTitle>
+                                <DialogDescription className="text-fg-muted">
+                                  &ldquo;{prompt.title}&rdquo; and its chat history will be permanently deleted.
                                 </DialogDescription>
                               </DialogHeader>
-                              <DialogFooter className="gap-3 mt-6">
-                                <Button
-                                  variant="outline"
-                                  className="h-10 bg-[var(--theme-background-tertiary)] hover:bg-[var(--theme-border-hover)] border-[var(--theme-border)] text-[var(--theme-text)] rounded-xl"
-                                  onClick={(e) => {
-                                    (e.target as HTMLElement).closest(
-                                      "dialog"
-                                    )?.close();
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
+                              <DialogFooter className="mt-2 gap-2">
+                                <DialogClose asChild>
+                                  <Button variant="outline">Cancel</Button>
+                                </DialogClose>
                                 <Button
                                   variant="destructive"
-                                  onClick={() => handleDelete(prompt.id)}
+                                  onClick={() => deleteMutation.mutate(prompt.id)}
                                   disabled={deleteMutation.isPending}
                                 >
-                                  {deleteMutation.isPending
-                                    ? "Deleting..."
-                                    : "Delete"}
+                                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
                                 </Button>
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                        <h3 className="mt-3 line-clamp-2 font-medium leading-snug text-fg">{prompt.title}</h3>
+                        <p className="mt-auto pt-4 text-xs text-fg-subtle">{formatRelativeTime(prompt.created_at)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </div>
         </main>
       </div>

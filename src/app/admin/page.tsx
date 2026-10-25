@@ -164,27 +164,27 @@ export default function AdminDashboard() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-screen overflow-hidden bg-canvas">
         <Sidebar />
-        <main className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[var(--theme-background)] to-[var(--theme-background-secondary)] overflow-y-auto">
-          <div className="flex-1 flex flex-col px-4 py-12 md:px-8 mt-16 lg:mt-0">
-            <div className="max-w-6xl mx-auto w-full space-y-10">
+        <main className="ambient flex min-w-0 flex-1 flex-col overflow-y-auto pt-14 lg:pt-0">
+          <div className="flex flex-1 flex-col px-4 py-8 sm:px-8 lg:py-12">
+            <div className="mx-auto w-full max-w-6xl space-y-8">
               
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center shadow-lg">
-                  <Shield className="h-6 w-6 text-[var(--theme-accent-text)]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient shadow-glow">
+                  <Shield className="h-5 w-5 text-brand-fg" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-extrabold text-[var(--theme-text)]">Admin Dashboard</h1>
-                  <p className="text-[var(--theme-text-secondary)]">Manage users, subscriptions, and bulk emails.</p>
+                  <h1 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">Admin dashboard</h1>
+                  <p className="text-sm text-fg-muted">Manage users, subscriptions, and bulk emails.</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: User Table */}
                 <div className="lg:col-span-2">
-                  <div className="rounded-2xl bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] shadow-xl overflow-hidden p-6">
-                    <h2 className="text-xl font-bold text-[var(--theme-text)] mb-6">User Management</h2>
+                  <div className="rounded-3xl border border-line bg-surface shadow-soft overflow-hidden p-6">
+                    <h2 className="text-base font-semibold text-fg mb-6">User Management</h2>
                     {isUsersLoading ? (
                       <div className="flex items-center justify-center p-12">
                         <Loader2 className="h-8 w-8 animate-spin text-[var(--theme-accent-1)]" />
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
                                   <div className="text-xs text-[var(--theme-text-tertiary)]">{u.email}</div>
                                 </TableCell>
                                 <TableCell>
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin' ? 'bg-[var(--theme-accent-1)] text-white' : 'bg-[var(--theme-background-tertiary)] text-[var(--theme-text-secondary)]'}`}>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin' ? 'bg-brand/10 text-brand border border-brand/20' : 'bg-[var(--theme-background-tertiary)] text-[var(--theme-text-secondary)]'}`}>
                                     {u.role}
                                   </span>
                                 </TableCell>
@@ -240,19 +240,19 @@ export default function AdminDashboard() {
 
                 {/* Right Column: Bulk Email */}
                 <div>
-                  <div className="rounded-2xl bg-[var(--theme-background-secondary)] border border-[var(--theme-border)] shadow-xl p-6">
+                  <div className="rounded-3xl border border-line bg-surface shadow-soft p-6">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="w-10 h-10 rounded-lg bg-[var(--theme-background-tertiary)] flex items-center justify-center border border-[var(--theme-border)] text-[var(--theme-accent-1)] shadow-sm">
                         <Mail className="h-5 w-5" />
                       </div>
-                      <h2 className="text-xl font-bold text-[var(--theme-text)]">Bulk Email</h2>
+                      <h2 className="text-base font-semibold text-fg">Bulk Email</h2>
                     </div>
 
                     <form onSubmit={handleSendEmail} className="space-y-4">
                       <div className="space-y-2">
                         <label className="text-sm font-semibold text-[var(--theme-text-secondary)]">Target Audience</label>
                         <Select value={emailTarget} onValueChange={(val: any) => setEmailTarget(val)}>
-                          <SelectTrigger className="w-full bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)]">
+                          <SelectTrigger className="w-full bg-canvas/60">
                             <SelectValue placeholder="Select target" />
                           </SelectTrigger>
                           <SelectContent>
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
                           value={emailSubject}
                           onChange={(e) => setEmailSubject(e.target.value)}
                           placeholder="Email subject..."
-                          className="bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)]"
+                          className="bg-canvas/60"
                         />
                       </div>
 
@@ -280,14 +280,14 @@ export default function AdminDashboard() {
                           onChange={(e) => setEmailBody(e.target.value)}
                           placeholder="Write your message here..."
                           rows={6}
-                          className="bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)] resize-none"
+                          className="bg-canvas/60 resize-none"
                         />
                       </div>
 
                       <Button 
                         type="submit" 
                         disabled={sendEmailMutation.isPending}
-                        className="w-full bg-[var(--theme-accent-1)] hover:brightness-110 text-[var(--theme-accent-text)] font-semibold"
+                        className="w-full"
                       >
                         {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Broadcast"}
                       </Button>
@@ -313,7 +313,7 @@ export default function AdminDashboard() {
             <div className="space-y-2">
               <label className="text-sm font-semibold text-[var(--theme-text-secondary)]">Role</label>
               <Select value={editRole} onValueChange={(val: any) => setEditRole(val)}>
-                <SelectTrigger className="w-full bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)]">
+                <SelectTrigger className="w-full bg-canvas/60">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -325,7 +325,7 @@ export default function AdminDashboard() {
             <div className="space-y-2">
               <label className="text-sm font-semibold text-[var(--theme-text-secondary)]">Subscription</label>
               <Select value={editSubscription} onValueChange={(val: any) => setEditSubscription(val)}>
-                <SelectTrigger className="w-full bg-[var(--theme-background-tertiary)] border-[var(--theme-border)] text-[var(--theme-text)]">
+                <SelectTrigger className="w-full bg-canvas/60">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -337,7 +337,7 @@ export default function AdminDashboard() {
             <Button 
               onClick={handleEditSave} 
               disabled={updateUserMutation.isPending}
-              className="w-full mt-4 bg-[var(--theme-accent-1)] hover:brightness-110 text-[var(--theme-accent-text)]"
+              className="w-full mt-4"
             >
               {updateUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
             </Button>

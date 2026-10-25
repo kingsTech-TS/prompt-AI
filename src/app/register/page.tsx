@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Form,
   FormControl,
@@ -13,17 +14,41 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { AuthShell } from "@/components/auth-shell";
 import { useToast } from "@/hooks/use-toast";
 import { UserCreate } from "@/lib/types";
 import { authApi } from "@/lib/api";
 import { setToken } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
-import Image from "next/image";
+import { ArrowRight, AtSign, Lock, Mail } from "lucide-react";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const STRENGTH = [
+  { label: "Too weak", color: "bg-red-500", text: "text-red-400" },
+  { label: "Weak", color: "bg-orange-500", text: "text-orange-400" },
+  { label: "Fair", color: "bg-amber-400", text: "text-amber-400" },
+  { label: "Good", color: "bg-lime-500", text: "text-lime-400" },
+  { label: "Strong", color: "bg-emerald-500", text: "text-emerald-400" },
+];
+
+/** 0–4: one point each for length ≥ 8, mixed case, a number, a symbol (length < 6 caps it at 0). */
+function passwordScore(pw: string) {
+  if (pw.length < 6) return 0;
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  return score;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [shake, setShake] = useState(false);
 
   const form = useForm<UserCreate>({
     defaultValues: {
@@ -32,6 +57,14 @@ export default function RegisterPage() {
       password: "",
     },
   });
+
+  const password = form.watch("password");
+  const score = passwordScore(password);
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 450);
+  };
 
   const onSubmit = async (values: UserCreate) => {
     setIsLoading(true);
@@ -44,6 +77,7 @@ export default function RegisterPage() {
       });
       router.push("/dashboard");
     } catch (error: any) {
+      triggerShake();
       toast({
         title: "Registration failed",
         description: error.message || "An error occurred during registration",
@@ -54,284 +88,162 @@ export default function RegisterPage() {
     }
   };
 
+  const iconClass =
+    "pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-fg-subtle transition-colors group-focus-within:text-brand";
+
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">
-      {/* ── Left hero panel ─────────────────────────────────────────── */}
-      <div
-        className="hidden lg:flex relative lg:w-[55%] flex-col justify-between p-8 sm:p-12 overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, #2d0a6e 0%, #4b1299 40%, #7c3abf 70%, #9b59d0 100%)",
-        }}
-      >
-        {/* Animated star dots */}
-        {[...Array(22)].map((_, i) => (
-          <span
-            key={i}
-            className="absolute rounded-full bg-white/60 animate-pulse"
-            style={{
-              width: `${[3, 2, 4, 2, 3, 5, 2, 3, 4, 2, 3, 2, 4, 3, 2, 5, 3, 2, 4, 3, 2, 3][i]}px`,
-              height: `${[3, 2, 4, 2, 3, 5, 2, 3, 4, 2, 3, 2, 4, 3, 2, 5, 3, 2, 4, 3, 2, 3][i]}px`,
-              top: `${[8, 15, 23, 38, 5, 55, 72, 85, 91, 45, 62, 30, 17, 77, 50, 33, 68, 12, 43, 80, 25, 60][i]}%`,
-              left: `${[10, 30, 60, 80, 50, 20, 70, 40, 15, 85, 55, 45, 75, 25, 65, 35, 5, 90, 48, 72, 18, 82][i]}%`,
-              animationDelay: `${[0, 0.5, 1, 1.5, 2, 0.3, 0.8, 1.2, 1.7, 2.2, 0.6, 1.1, 0.2, 0.9, 1.4, 1.9, 0.4, 0.7, 1.3, 1.8, 2.1, 0.1][i]}s`,
-              animationDuration: `${[2, 3, 2.5, 3.5, 2, 4, 2.5, 3, 2, 3.5, 2.5, 4, 3, 2, 3.5, 2.5, 3, 2, 4, 2.5, 3.5, 2][i]}s`,
-            }}
-          />
-        ))}
-
-        {/* Glowing orbs */}
-        <div className="absolute top-[-80px] left-[-80px] w-72 h-72 rounded-full bg-purple-400/20 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-[-100px] right-[-60px] w-96 h-96 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 right-1/4 w-40 h-40 rounded-full bg-indigo-400/10 blur-2xl pointer-events-none" />
-
-        {/* Logo */}
-        <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <Image
-              src="/logo.png"
-              alt="PromptCraft"
-              width={40}
-              height={40}
-              className="rounded-xl group-hover:scale-105 transition-transform"
-            />
-            <span className="text-white font-bold text-xl tracking-tight">
-              PromptCraft
-            </span>
+    <AuthShell
+      title="Create your account"
+      subtitle="Start turning designs and ideas into prompts. It's free."
+      heroTitle={
+        <>
+          Ship faster with
+          <br />
+          <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">
+            build-ready prompts.
+          </span>
+        </>
+      }
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-brand underline-offset-4 hover:underline">
+            Sign in
           </Link>
-        </div>
+        </>
+      }
+    >
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit, triggerShake)}
+          className={cn("space-y-4", shake && "animate-shake")}
+          noValidate
+        >
+          <FormField
+            control={form.control}
+            name="username"
+            rules={{ required: "Username is required" }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium text-fg">Username</FormLabel>
+                <div className="group relative">
+                  <AtSign className={iconClass} />
+                  <FormControl>
+                    <Input autoComplete="username" placeholder="johndoe" {...field} className="h-12 pl-10" />
+                  </FormControl>
+                </div>
+                <FormMessage className="text-xs text-red-400" />
+              </FormItem>
+            )}
+          />
 
-        {/* Hero text + rocket */}
-        <div className="relative z-10 flex-1 flex flex-col justify-center">
-          <div className="flex flex-col lg:flex-row items-center gap-6 lg:gap-0">
-            <div className="flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 border border-white/25 mb-6">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-white/90 text-xs font-medium tracking-wide">
-                  Join thousands of designers
-                </span>
-              </div>
-              <h1
-                className="text-white font-bold leading-tight mb-4"
-                style={{ fontSize: "clamp(28px, 4vw, 48px)" }}
-              >
-                Start Your
-                <br />
-                <span
-                  style={{
-                    background:
-                      "linear-gradient(90deg, #e2baff 0%, #c084fc 50%, #f0abfc 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                  }}
+          <FormField
+            control={form.control}
+            name="email"
+            rules={{
+              required: "Email is required",
+              pattern: { value: EMAIL_RE, message: "Enter a valid email address" },
+            }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium text-fg">Email</FormLabel>
+                <div className="group relative">
+                  <Mail className={iconClass} />
+                  <FormControl>
+                    <Input
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      {...field}
+                      className="h-12 pl-10"
+                    />
+                  </FormControl>
+                </div>
+                <FormMessage className="text-xs text-red-400" />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            rules={{ required: "Password is required" }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium text-fg">Password</FormLabel>
+                <div className="group relative">
+                  <Lock className={iconClass} />
+                  <FormControl>
+                    <PasswordInput
+                      autoComplete="new-password"
+                      placeholder="Create a password"
+                      {...field}
+                      className="h-12 pl-10"
+                    />
+                  </FormControl>
+                </div>
+
+                {/* Strength meter: slides open once the user starts typing */}
+                <div
+                  className={cn(
+                    "grid transition-all duration-300 ease-out",
+                    password ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  )}
                 >
-                  Design Journey
-                </span>
-              </h1>
-              <p className="text-white/70 text-base sm:text-lg leading-relaxed max-w-md">
-                Create your free account and unlock the power of AI-driven UI
-                prompt generation. No credit card required.
-              </p>
-
-              {/* Stats row */}
-              <div className="flex flex-wrap gap-6 mt-8">
-                {[
-                  { value: "10k+", label: "Prompts generated" },
-                  { value: "Free", label: "To get started" },
-                  { value: "∞", label: "Possibilities" },
-                ].map((stat) => (
-                  <div key={stat.label}>
-                    <p className="text-white font-bold text-xl">{stat.value}</p>
-                    <p className="text-white/50 text-xs mt-0.5">{stat.label}</p>
+                  <div className="overflow-hidden">
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="flex flex-1 gap-1">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-elevated">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500 ease-out",
+                                STRENGTH[score].color,
+                                i < Math.max(score, 1) ? "w-full" : "w-0"
+                              )}
+                              style={{ transitionDelay: `${i * 60}ms` }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <span className={cn("w-16 text-right text-[11px] font-medium transition-colors", STRENGTH[score].text)}>
+                        {STRENGTH[score].label}
+                      </span>
+                    </div>
+                    <p className="pt-1.5 text-[11px] text-fg-subtle">
+                      Use 8+ characters with upper & lower case, a number and a symbol.
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+                <FormMessage className="text-xs text-red-400" />
+              </FormItem>
+            )}
+          />
 
-            {/* Rocket illustration */}
-            <div className="relative lg:absolute lg:right-8 lg:bottom-24 flex-shrink-0">
-              <div className="relative w-36 h-36 sm:w-48 sm:h-48 lg:w-56 lg:h-56">
-                <div className="absolute inset-0 rounded-full bg-white/5 blur-xl animate-pulse" />
-                <Image
-                  src="/rocket.png"
-                  alt="Rocket launching"
-                  fill
-                  className="object-contain drop-shadow-[0_0_30px_rgba(192,132,252,0.6)]"
-                  style={{
-                    animation: "rocketFloat 3s ease-in-out infinite",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+          <Button
+            id="register-submit"
+            type="submit"
+            className="group mt-2 h-12 w-full text-base font-semibold"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Creating account...
+              </>
+            ) : (
+              <>
+                Create account
+                <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
+              </>
+            )}
+          </Button>
 
-        {/* Bottom quote */}
-        <div className="relative z-10 border-t border-white/15 pt-6">
-          <p className="text-white/50 text-xs">
-            "Great design is born from great prompts. We help you write both."
+          <p className="text-center text-[11px] text-fg-subtle">
+            Free plan includes 3 prompts. No credit card required.
           </p>
-        </div>
-
-        <style>{`
-          @keyframes rocketFloat {
-            0%, 100% { transform: translateY(0px) rotate(-5deg); }
-            50% { transform: translateY(-16px) rotate(-5deg); }
-          }
-        `}</style>
-      </div>
-
-      {/* ── Right form panel ─────────────────────────────────────────── */}
-      <div className="flex-1 lg:flex-none lg:w-[45%] min-h-screen lg:min-h-0 flex items-center justify-center p-6 sm:p-10 bg-[var(--theme-background)]">
-        <div className="w-full max-w-[400px] animate-in fade-in slide-in-from-right-4 duration-500">
-          {/* Mobile logo */}
-          <div className="flex justify-center mb-8 lg:hidden">
-            <Link href="/" className="inline-flex items-center gap-3">
-              <Image src="/logo.png" alt="PromptCraft" width={36} height={36} className="rounded-xl" />
-              <span className="font-bold text-lg text-[var(--theme-text)]">PromptCraft</span>
-            </Link>
-          </div>
-
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="text-[var(--theme-text)] font-bold text-3xl mb-2">
-              Create account 🚀
-            </h2>
-            <p className="text-[var(--theme-text-secondary)] text-sm">
-              Fill in the details below to get started for free
-            </p>
-          </div>
-
-          {/* Form */}
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[var(--theme-text-secondary)] text-sm font-medium">
-                      Username
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        id="register-username"
-                        placeholder="johndoe"
-                        {...field}
-                        className="h-12 rounded-xl bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0 focus:border-purple-500/60 transition-all hover:border-[var(--theme-border-hover)] shadow-sm hover:shadow-md"
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[var(--theme-text-secondary)] text-sm font-medium">
-                      Email address
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="email@example.com"
-                        {...field}
-                        className="h-12 rounded-xl bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0 focus:border-purple-500/60 transition-all hover:border-[var(--theme-border-hover)] shadow-sm hover:shadow-md"
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[var(--theme-text-secondary)] text-sm font-medium">
-                      Password
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="••••••••"
-                        {...field}
-                        className="h-12 rounded-xl bg-[var(--theme-background-secondary)] border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-tertiary)] focus:ring-0 focus-visible:ring-0 focus:border-purple-500/60 transition-all hover:border-[var(--theme-border-hover)] shadow-sm hover:shadow-md"
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                id="register-submit"
-                type="submit"
-                className="w-full h-12 rounded-xl font-semibold text-white text-base transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #7c3abf 0%, #9b59d0 50%, #b06de0 100%)",
-                  boxShadow: isLoading
-                    ? "none"
-                    : "0 4px 24px rgba(124,58,191,0.4)",
-                }}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <svg
-                      className="animate-spin h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeOpacity="0.3"
-                      />
-                      <path
-                        d="M12 2a10 10 0 0 1 10 10"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    Creating account...
-                  </span>
-                ) : (
-                  "Create Account"
-                )}
-              </Button>
-
-              {/* Divider */}
-              <div className="relative flex items-center gap-3 my-1">
-                <div className="flex-1 h-px bg-[var(--theme-border)]" />
-                <span className="text-[var(--theme-text-tertiary)] text-xs">or</span>
-                <div className="flex-1 h-px bg-[var(--theme-border)]" />
-              </div>
-
-              <p className="text-center text-sm text-[var(--theme-text-secondary)]">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="font-bold text-purple-400 hover:text-purple-300 hover:underline transition-colors"
-                >
-                  Sign In
-                </Link>
-              </p>
-            </form>
-          </Form>
-        </div>
-      </div>
-    </div>
+        </form>
+      </Form>
+    </AuthShell>
   );
 }

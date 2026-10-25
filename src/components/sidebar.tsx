@@ -1,24 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeSelector } from "@/components/theme-selector";
-import { Plus, LogOut, Menu, X, Sparkles, User, Terminal, Lightbulb, FolderOpen } from "lucide-react";
+import {
+  Plus,
+  LogOut,
+  Menu,
+  X,
+  Sparkles,
+  User,
+  Terminal,
+  Lightbulb,
+  FolderOpen,
+  LayoutGrid,
+  Wand2,
+  ShieldCheck,
+  Search,
+  MessageSquare,
+} from "lucide-react";
 import { clearAllAuthData } from "@/lib/auth";
 import { promptsApi, authApi } from "@/lib/api";
 import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 
+const GROUP_ORDER = ["Today", "Yesterday", "This Week", "Earlier"];
 
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery<PaginatedPromptResponse>({
     queryKey: ["prompts"],
@@ -32,28 +48,31 @@ export default function Sidebar() {
     queryFn: () => authApi.getMe(),
   });
 
-  const groupPromptsByDate = (prompts: PromptResponse[]) => {
+  const groupedPrompts = useMemo(() => {
     const groups: { [key: string]: PromptResponse[] } = {};
     const now = new Date();
+    const query = search.trim().toLowerCase();
 
-    prompts.forEach((prompt) => {
-      const promptDate = new Date(prompt.created_at);
-      const diffInDays = Math.floor(
-        (now.getTime() - promptDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
+    (data?.prompts || [])
+      .filter((p) => !query || p.title.toLowerCase().includes(query))
+      .forEach((prompt) => {
+        const promptDate = new Date(prompt.created_at);
+        const diffInDays = Math.floor(
+          (now.getTime() - promptDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
 
-      let groupKey = "";
-      if (diffInDays === 0) groupKey = "Today";
-      else if (diffInDays === 1) groupKey = "Yesterday";
-      else if (diffInDays < 7) groupKey = "This Week";
-      else groupKey = "Earlier";
+        let groupKey = "";
+        if (diffInDays === 0) groupKey = "Today";
+        else if (diffInDays === 1) groupKey = "Yesterday";
+        else if (diffInDays < 7) groupKey = "This Week";
+        else groupKey = "Earlier";
 
-      if (!groups[groupKey]) groups[groupKey] = [];
-      groups[groupKey].push(prompt);
-    });
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(prompt);
+      });
 
-    return groups;
-  };
+    return GROUP_ORDER.filter((g) => groups[g]).map((g) => [g, groups[g]] as const);
+  }, [data?.prompts, search]);
 
   const handleLogout = () => {
     // 1. Clear the auth token and any session storage
@@ -65,117 +84,160 @@ export default function Sidebar() {
     router.push("/login");
   };
 
+  const closeMenu = () => setIsMobileMenuOpen(false);
+
+  const navItems = [
+    { href: "/dashboard", label: "Home", icon: LayoutGrid },
+    { href: "/generate", label: "UI Prompt", icon: Wand2 },
+    { href: "/idea", label: "Idea Generator", icon: Lightbulb },
+    { href: "/collections", label: "Collections", icon: FolderOpen },
+    ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
+  ];
+
+  const usagePct =
+    user && user.max_prompts > 0 ? Math.min(100, (user.prompts_used / user.max_prompts) * 100) : 0;
+
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[var(--theme-background-secondary)] border-r border-[var(--theme-border)]">
-      <div className="p-4 border-b border-[var(--theme-border)]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
-              <Terminal className="h-5 w-5 text-[var(--theme-accent-text)]" />
-            </div>
-            <span className="text-xl font-bold text-[var(--theme-text)]">PromptCraft</span>
+    <div className="flex h-full flex-col border-r border-line bg-surface">
+      {/* Brand */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <Link href="/dashboard" onClick={closeMenu} className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gradient shadow-glow">
+            <Terminal className="h-4 w-4 text-brand-fg" />
           </div>
-          <ThemeSelector />
-        </div>
-        <Button
-          asChild
-          className="w-full justify-start gap-2 bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] hover:brightness-110 text-[var(--theme-accent-text)] font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
+          <span className="text-[15px] font-semibold tracking-tight text-fg">PromptCraft</span>
+        </Link>
+        <ThemeSelector />
+      </div>
+
+      {/* Primary action */}
+      <div className="px-3">
+        <Link
+          href="/generate"
+          onClick={closeMenu}
+          className="group flex h-10 items-center gap-2 rounded-xl bg-brand-gradient px-3 text-sm font-semibold text-brand-fg shadow-glow transition-all hover:brightness-110 active:scale-[0.98]"
         >
-          <Link href="/generate" onClick={() => setIsMobileMenuOpen(false)}>
-            <Plus className="h-5 w-5" />
-            New Prompt
-          </Link>
-        </Button>
-        <Button
-          asChild
-          variant="outline"
-          className="w-full justify-start gap-2 mt-3 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-sm transition-all"
-        >
-          <Link href="/idea" onClick={() => setIsMobileMenuOpen(false)}>
-            <Lightbulb className="h-5 w-5 text-yellow-400" />
-            Idea Generator
-          </Link>
-        </Button>
-        <Button
-          asChild
-          variant="outline"
-          className="w-full justify-start gap-2 mt-3 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-sm transition-all"
-        >
-          <Link href="/collections" onClick={() => setIsMobileMenuOpen(false)}>
-            <FolderOpen className="h-5 w-5 text-blue-400" />
-            Collections
-          </Link>
-        </Button>
-        {user?.role === "admin" && (
-          <Button
-            asChild
-            variant="outline"
-            className="w-full justify-start gap-2 mt-3 border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] font-semibold rounded-xl shadow-sm transition-all"
-          >
-            <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
-              <User className="h-5 w-5" />
-              Admin Dashboard
+          <Plus className="h-4 w-4 transition-transform group-hover:rotate-90" />
+          New prompt
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <nav className="mt-4 space-y-0.5 px-3">
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={closeMenu}
+              className={cn(
+                "flex h-9 items-center gap-3 rounded-lg px-2.5 text-sm transition-colors",
+                active
+                  ? "bg-elevated font-medium text-fg"
+                  : "text-fg-muted hover:bg-elevated/60 hover:text-fg"
+              )}
+            >
+              <Icon className={cn("h-4 w-4", active ? "text-brand" : "text-fg-subtle")} />
+              {label}
             </Link>
-          </Button>
+          );
+        })}
+      </nav>
+
+      {/* History */}
+      <div className="mt-5 px-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search history"
+            className="h-8 w-full rounded-lg border border-line bg-canvas/60 pl-8 pr-2 text-xs text-fg placeholder:text-fg-subtle outline-none transition-colors focus:border-brand/50"
+          />
+        </div>
+      </div>
+
+      <div className="mt-3 flex-1 overflow-y-auto px-3 pb-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-8 animate-pulse rounded-lg bg-elevated" />
+            ))}
+          </div>
+        ) : groupedPrompts.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <MessageSquare className="h-5 w-5 text-fg-subtle" />
+            <p className="text-xs text-fg-subtle">
+              {search ? "No prompts match your search" : "Your prompts will show up here"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {groupedPrompts.map(([group, prompts]) => (
+              <div key={group}>
+                <h3 className="mb-1 px-2.5 text-[11px] font-medium text-fg-subtle">{group}</h3>
+                <div className="space-y-px">
+                  {prompts.map((prompt) => {
+                    const active = pathname === `/prompts/${prompt.id}`;
+                    return (
+                      <Link
+                        key={prompt.id}
+                        href={`/prompts/${prompt.id}`}
+                        onClick={closeMenu}
+                        title={prompt.title}
+                        className={cn(
+                          "relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors",
+                          active
+                            ? "bg-elevated text-fg before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-brand"
+                            : "text-fg-muted hover:bg-elevated/60 hover:text-fg"
+                        )}
+                      >
+                        {prompt.source_type === "idea" ? (
+                          <Lightbulb className="h-3.5 w-3.5 flex-shrink-0 text-fg-subtle" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-fg-subtle" />
+                        )}
+                        <span className="flex-1 truncate">{prompt.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-3 py-4">
-          {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-12 bg-[var(--theme-background-tertiary)] rounded-lg animate-pulse"
-                />
-              ))}
+
+      {/* Account */}
+      <div className="space-y-3 border-t border-line p-3">
+        {user && user.role !== "admin" && (
+          <div className="rounded-xl border border-line bg-canvas/60 px-3 py-2.5">
+            <div className="mb-1.5 flex items-center justify-between text-[11px]">
+              <span className="text-fg-muted">Prompts used</span>
+              <span className={cn("font-medium tabular-nums", usagePct >= 100 ? "text-red-400" : "text-fg")}>
+                {user.prompts_used} / {user.max_prompts}
+              </span>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(groupPromptsByDate(data?.prompts || [])).map(
-                ([group, prompts]) => (
-                  <div key={group}>
-                    <h3 className="text-xs font-semibold text-[var(--theme-text-tertiary)] uppercase tracking-wider mb-3 px-1">
-                      {group}
-                    </h3>
-                    <div className="space-y-1">
-                      {prompts.map((prompt) => (
-                        <Link
-                          key={prompt.id}
-                          href={`/prompts/${prompt.id}`}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          className={`flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm transition-all ${
-                            pathname === `/prompts/${prompt.id}`
-                              ? "bg-[var(--theme-background-tertiary)] text-[var(--theme-text)]"
-                              : "text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)] hover:text-[var(--theme-text)]"
-                          }`}
-                        >
-                          {prompt.source_type === "idea" ? (
-                            <Lightbulb className="h-4 w-4 text-yellow-400 flex-shrink-0" />
-                          ) : (
-                            <Sparkles className="h-4 w-4 text-[var(--theme-accent-1)] flex-shrink-0" />
-                          )}
-                          <span className="flex-1 truncate">
-                            {prompt.title}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )
-              )}
+            <div className="h-1.5 overflow-hidden rounded-full bg-elevated">
+              <div
+                className={cn("h-full rounded-full transition-all", usagePct >= 100 ? "bg-red-500" : "bg-brand-gradient")}
+                style={{ width: `${usagePct}%` }}
+              />
             </div>
-          )}
-        </ScrollArea>
-      </div>
-      <div className="p-4 border-t border-[var(--theme-border)] space-y-2">
-        <Button
-          asChild
-          variant="ghost"
-          className="w-full justify-start gap-3 p-2 text-[var(--theme-text-secondary)] hover:bg-[var(--theme-background-tertiary)] hover:text-[var(--theme-text)] transition-colors rounded-xl"
-        >
-          <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
-            <div className="relative w-10 h-10 rounded-full bg-[var(--theme-background-tertiary)] flex items-center justify-center overflow-hidden border border-[var(--theme-border)] flex-shrink-0">
+          </div>
+        )}
+
+        <div className="flex items-center gap-1">
+          <Link
+            href="/profile"
+            onClick={closeMenu}
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1.5 transition-colors hover:bg-elevated",
+              pathname === "/profile" && "bg-elevated"
+            )}
+          >
+            <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-elevated">
               {user?.profile_picture_url ? (
                 <Image
                   src={user.profile_picture_url}
@@ -185,74 +247,63 @@ export default function Sidebar() {
                   className="object-cover"
                 />
               ) : (
-                <User className="h-5 w-5" />
+                <User className="h-4 w-4 text-fg-muted" />
               )}
             </div>
-            <div className="flex-1 text-left">
-              <div className="font-semibold text-[var(--theme-text)]">
-                {user?.username || "User"}
-              </div>
-              <div className="text-xs text-[var(--theme-text-tertiary)]">
-                {user?.email}
-              </div>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="truncate text-[13px] font-medium text-fg">{user?.username || "User"}</div>
+              <div className="truncate text-[11px] text-fg-subtle">{user?.email}</div>
             </div>
           </Link>
-        </Button>
-        <Button
-          id="sidebar-logout-btn"
-          variant="ghost"
-          onClick={handleLogout}
-          className="w-full justify-start gap-3 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors rounded-xl"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="text-sm font-medium">Sign Out</span>
-        </Button>
+          <button
+            id="sidebar-logout-btn"
+            onClick={handleLogout}
+            title="Sign out"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-red-500/10 hover:text-red-400"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--theme-background-secondary)] p-3 border-b border-[var(--theme-border)]">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-[var(--theme-text)] hover:bg-[var(--theme-background-tertiary)] rounded-lg"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </Button>
-          <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2 text-[var(--theme-text)]">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] flex items-center justify-center">
-              <Terminal className="h-4 w-4 text-[var(--theme-accent-text)]" />
-            </div>
-            PromptCraft
-          </Link>
-        </div>
+      {/* Mobile top bar */}
+      <div className="glass fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 border-b border-line px-3 lg:hidden">
+        <button
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-fg hover:bg-elevated"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+        <Link href="/dashboard" className="flex items-center gap-2 text-[15px] font-semibold text-fg">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-gradient">
+            <Terminal className="h-3.5 w-3.5 text-brand-fg" />
+          </div>
+          PromptCraft
+        </Link>
       </div>
 
       {/* Mobile sidebar overlay */}
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/50"
-          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-in fade-in lg:hidden"
+          onClick={closeMenu}
         />
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 transform transition-transform duration-200 ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-72 flex-shrink-0 transform transition-transform duration-300 ease-out lg:static lg:w-64 lg:translate-x-0",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
       >
         {sidebarContent}
-      </div>
+      </aside>
     </>
   );
 }
