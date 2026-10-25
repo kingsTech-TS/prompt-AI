@@ -128,13 +128,34 @@ export interface DbSchema {
 export interface IdeaPhase {
   phase_number: number;
   title: string;
+  goal?: string | null;
   content: string;
 }
+
+export interface IdeaRole {
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
+/** What the AI inferred about the system from the user's idea. */
+export interface IdeaAnalysis {
+  app_type?: string | null;
+  target_users: string[];
+  roles: IdeaRole[];
+  needs_admin_dashboard?: boolean | null;
+  dashboard_reason?: string | null;
+  core_features: string[];
+  integrations: string[];
+}
+
+export type TargetAgent = "general" | "claude_code" | "codex" | "cursor" | "antigravity";
 
 export interface IdeaGenerateRequest {
   idea: string;
   collection_id?: string;
   output_mode: "full" | "phased";
+  target_agent: TargetAgent;
 }
 
 type SourceType = "url" | "image" | "both" | "idea";
@@ -157,6 +178,9 @@ interface PromptResponse {
   env_variables?: EnvVariable[];
   db_schemas?: DbSchema[];
   collection_id?: string;
+  summary?: string | null;
+  analysis?: IdeaAnalysis | null;
+  target_agent?: TargetAgent | null;
 
   created_at: string;
   updated_at: string;

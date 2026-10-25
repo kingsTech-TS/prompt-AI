@@ -22,7 +22,9 @@ import {
   PromptResponse,
   ChatSessionResponse,
   ChatMessageRequest,
+  IdeaPhase,
 } from "@/lib/types";
+import { agentById } from "@/lib/agents";
 import { promptsApi, chatApi } from "@/lib/api";
 import { buildPromptMarkdown, downloadMarkdown, extractPromptText, tidyMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,13 @@ import {
   Database,
   KeyRound,
   Boxes,
+  Bot,
+  Compass,
+  Users,
+  LayoutDashboard,
+  Minus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -50,7 +59,7 @@ type DisplayMessage = {
   images?: string[];
 };
 
-type IdeaTab = "full" | "stack" | "env" | "db" | "phases";
+type IdeaTab = "overview" | "full" | "stack" | "env" | "db" | "phases";
 
 const UI_SUGGESTIONS = [
   "Convert this to Next.js + Tailwind CSS",
@@ -74,7 +83,7 @@ export default function PromptDetailPage() {
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<IdeaTab>("full");
+  const [activeTab, setActiveTab] = useState<IdeaTab>("overview");
   const [activePhaseIndex, setActivePhaseIndex] = useState<number>(0);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -300,19 +309,146 @@ export default function PromptDetailPage() {
 
   const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
+  const isPhased = !!prompt.phases?.length;
+  const agent = agentById(prompt.target_agent);
+  const analysis = prompt.analysis;
+
   const ideaTabs: { id: IdeaTab; label: string; icon: React.ElementType; show: boolean }[] = [
-    { id: "full", label: "Blueprint", icon: FileText, show: true },
+    { id: "overview", label: "Overview", icon: Compass, show: !!(analysis || prompt.summary) },
+    { id: "full", label: isPhased ? "Project brief" : "Full prompt", icon: FileText, show: true },
+    { id: "phases", label: `Phases (${prompt.phases?.length ?? 0})`, icon: Layers, show: isPhased },
     { id: "stack", label: "Stack", icon: Boxes, show: !!prompt.recommended_stack && Object.keys(prompt.recommended_stack).length > 0 },
-    { id: "env", label: ".env", icon: KeyRound, show: !!prompt.env_variables?.length },
     { id: "db", label: "Database", icon: Database, show: !!prompt.db_schemas?.length },
-    { id: "phases", label: "Roadmap", icon: Layers, show: !!prompt.phases?.length },
+    { id: "env", label: ".env", icon: KeyRound, show: !!prompt.env_variables?.length },
   ];
+  const visibleTabs = ideaTabs.filter((t) => t.show);
+  const currentTab = visibleTabs.some((t) => t.id === activeTab) ? activeTab : visibleTabs[0].id;
+
+  const phaseMarkdown = (p: IdeaPhase) =>
+    tidyMarkdown(`# ${prompt.title}: Phase ${p.phase_number} - ${p.title}\n\n${p.content}`) + "\n";
 
   const renderIdeaContent = () => {
     const blueprint = extractPromptText(prompt.full_prompt || prompt.generated_prompt);
-    switch (activeTab) {
+    switch (currentTab) {
+      case "overview":
+        return (
+          <div className="space-y-6">
+            {prompt.summary && <p className="text-[15px] leading-relaxed text-fg">{prompt.summary}</p>}
+
+            {/* How to use with the chosen agent */}
+            <div className="flex gap-3 rounded-xl border border-brand/20 bg-brand/5 p-4">
+              <Bot className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand" />
+              <div>
+                <p className="text-sm font-medium text-fg">Written for {agent.label === "Any agent" ? "any coding agent" : agent.label}</p>
+                <p className="mt-0.5 text-sm text-fg-muted">
+                  {agent.howTo}{" "}
+                  {isPhased
+                    ? "Paste the project brief first, then each phase in order. Check its acceptance criteria before moving on."
+                    : "Paste the full prompt once and let the agent work through the build plan."}
+                </p>
+              </div>
+            </div>
+
+            {analysis && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {analysis.app_type && (
+                    <div className="rounded-xl border border-line bg-canvas/60 p-4">
+                      <div className="text-xs text-fg-muted">Type of app</div>
+                      <div className="mt-1 text-sm font-medium text-fg">{analysis.app_type}</div>
+                      {analysis.target_users.length > 0 && (
+                        <div className="mt-1 text-xs text-fg-subtle">For {analysis.target_users.join(", ")}</div>
+                      )}
+                    </div>
+                  )}
+                  {analysis.needs_admin_dashboard != null && (
+                    <div className="rounded-xl border border-line bg-canvas/60 p-4">
+                      <div className="flex items-center gap-1.5 text-xs text-fg-muted">
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        Admin dashboard
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-fg">
+                        {analysis.needs_admin_dashboard ? (
+                          <>
+                            <Check className="h-4 w-4 text-emerald-400" /> Needed
+                          </>
+                        ) : (
+                          <>
+                            <Minus className="h-4 w-4 text-fg-subtle" /> Not needed
+                          </>
+                        )}
+                      </div>
+                      {analysis.dashboard_reason && <div className="mt-1 text-xs text-fg-subtle">{analysis.dashboard_reason}</div>}
+                    </div>
+                  )}
+                </div>
+
+                {analysis.roles.length > 0 && (
+                  <section>
+                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+                      <Users className="h-3.5 w-3.5" />
+                      {analysis.roles.length} {analysis.roles.length === 1 ? "role" : "roles"}
+                    </h4>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {analysis.roles.map((role) => (
+                        <div key={role.name} className="rounded-xl border border-line bg-canvas/60 p-4">
+                          <div className="text-sm font-semibold text-fg">{role.name}</div>
+                          {role.description && <p className="mt-0.5 text-xs text-fg-muted">{role.description}</p>}
+                          {role.permissions.length > 0 && (
+                            <ul className="mt-2 space-y-1">
+                              {role.permissions.map((perm) => (
+                                <li key={perm} className="flex gap-1.5 text-xs text-fg-muted">
+                                  <Check className="mt-0.5 h-3 w-3 flex-shrink-0 text-brand" />
+                                  {perm}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {[
+                  { label: "Core features", items: analysis.core_features },
+                  { label: "Integrations", items: analysis.integrations },
+                ]
+                  .filter((g) => g.items.length > 0)
+                  .map((g) => (
+                    <section key={g.label}>
+                      <h4 className="mb-2 text-xs font-medium text-fg-muted">{g.label}</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {g.items.map((item) => (
+                          <span key={item} className="rounded-lg border border-line bg-surface px-2.5 py-1 text-xs text-fg">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+              </>
+            )}
+          </div>
+        );
+
       case "full":
-        return <Markdown content={blueprint} />;
+        return (
+          <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-canvas/60 px-4 py-2.5">
+              <p className="text-xs text-fg-muted">
+                {isPhased
+                  ? "Paste this first so your agent understands the whole project."
+                  : `Paste this into ${agent.label === "Any agent" ? "your coding agent" : agent.label} to build the whole app.`}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => copyToClipboard(blueprint, "Copied the prompt.")}>
+                <Copy className="h-3 w-3" />
+                Copy prompt
+              </Button>
+            </div>
+            <Markdown content={blueprint} />
+          </div>
+        );
 
       case "stack":
         return (
@@ -356,7 +492,7 @@ export default function PromptDetailPage() {
                   <code className="truncate font-mono text-xs font-semibold text-brand">{env.key}</code>
                   <div className="min-w-0">
                     <p className="text-sm text-fg">{env.description}</p>
-                    <code className="mt-1 block truncate font-mono text-[11px] text-fg-subtle">{env.example}</code>
+                    {env.example && <code className="mt-1 block truncate font-mono text-[11px] text-fg-subtle">{env.example}</code>}
                   </div>
                 </div>
               ))}
@@ -393,45 +529,78 @@ export default function PromptDetailPage() {
         );
 
       case "phases": {
-        const phase = prompt.phases?.[activePhaseIndex];
+        const phases = prompt.phases ?? [];
+        const index = Math.min(activePhaseIndex, phases.length - 1);
+        const phase = phases[index];
         return (
-          <div className="grid gap-4 md:grid-cols-[13rem_1fr]">
-            <ol className="flex gap-1.5 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
-              {prompt.phases?.map((p, i) => (
-                <li key={i} className="flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setActivePhaseIndex(i)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs transition-colors",
-                      activePhaseIndex === i ? "bg-elevated text-fg" : "text-fg-muted hover:bg-elevated/60"
+          <div className="grid gap-5 md:grid-cols-[14rem_1fr]">
+            {/* Stepper */}
+            <ol className="relative flex gap-1.5 overflow-x-auto pb-1 md:flex-col md:gap-0 md:overflow-visible md:pb-0">
+              {phases.map((p, i) => {
+                const active = i === index;
+                return (
+                  <li key={p.phase_number} className="relative flex-shrink-0 md:pb-1">
+                    {i < phases.length - 1 && (
+                      <span className="absolute left-[1.3rem] top-9 hidden h-[calc(100%-1.75rem)] w-px bg-line md:block" />
                     )}
-                  >
-                    <span
+                    <button
+                      type="button"
+                      onClick={() => setActivePhaseIndex(i)}
                       className={cn(
-                        "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
-                        activePhaseIndex === i ? "bg-brand-gradient text-brand-fg" : "border border-line bg-surface"
+                        "flex w-full items-start gap-2.5 rounded-xl px-2 py-2 text-left transition-colors",
+                        active ? "bg-elevated" : "hover:bg-elevated/60"
                       )}
                     >
-                      {p.phase_number}
-                    </span>
-                    <span className="line-clamp-2 font-medium">{p.title}</span>
-                  </button>
-                </li>
-              ))}
+                      <span
+                        className={cn(
+                          "relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                          active ? "bg-brand-gradient text-brand-fg" : "border border-line bg-surface text-fg-muted"
+                        )}
+                      >
+                        {p.phase_number}
+                      </span>
+                      <span className="min-w-0">
+                        <span className={cn("line-clamp-2 text-xs font-medium", active ? "text-fg" : "text-fg-muted")}>{p.title}</span>
+                        {p.goal && <span className="mt-0.5 hidden text-[11px] leading-snug text-fg-subtle md:line-clamp-2">{p.goal}</span>}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
+
             {phase && (
-              <div className="min-w-0">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h4 className="text-sm font-semibold text-fg">
-                    Phase {phase.phase_number}: {phase.title}
-                  </h4>
-                  <Button size="sm" variant="outline" onClick={() => copyToClipboard(phase.content, "Copied phase prompt.")}>
-                    <Copy className="h-3 w-3" />
-                    Copy
+              <div key={phase.phase_number} className="min-w-0 animate-rise">
+                <div className="mb-4 rounded-xl border border-line bg-canvas/60 p-4">
+                  <div className="text-[11px] font-medium text-fg-subtle">
+                    Phase {phase.phase_number} of {phases.length}
+                  </div>
+                  <h4 className="mt-0.5 text-base font-semibold text-fg">{phase.title}</h4>
+                  {phase.goal && <p className="mt-1 text-sm text-fg-muted">{phase.goal}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => copyToClipboard(phaseMarkdown(phase), `Copied phase ${phase.phase_number}.`)}>
+                      <Copy className="h-3 w-3" />
+                      Copy phase prompt
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => downloadMarkdown(phaseMarkdown(phase), `phase-${phase.phase_number}.md`)}>
+                      <Download className="h-3 w-3" />
+                      phase-{phase.phase_number}.md
+                    </Button>
+                  </div>
+                </div>
+
+                <Markdown content={phase.content} />
+
+                <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
+                  <Button size="sm" variant="ghost" disabled={index === 0} onClick={() => setActivePhaseIndex(index - 1)}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Previous
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={index === phases.length - 1} onClick={() => setActivePhaseIndex(index + 1)}>
+                    Next phase
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <Markdown content={phase.content} />
               </div>
             )}
           </div>
@@ -546,7 +715,7 @@ export default function PromptDetailPage() {
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-medium text-brand">
                                 <Sparkles className="h-3 w-3" />
-                                {isIdea ? "Architecture blueprint" : "Generated UI/UX prompt"}
+                                {isIdea ? (isPhased ? "Phased build plan" : "Full build prompt") : "Generated UI/UX prompt"}
                               </span>
                               <span className="text-[11px] text-fg-subtle">
                                 {wordCount(isIdea ? prompt.full_prompt || msg.content : msg.content).toLocaleString()} words
@@ -557,17 +726,17 @@ export default function PromptDetailPage() {
                           {isIdea ? (
                             <>
                               <div className="flex gap-1 overflow-x-auto border-b border-line px-3 py-2">
-                                {ideaTabs.filter((t) => t.show).map(({ id, label, icon: Icon }) => (
+                                {visibleTabs.map(({ id, label, icon: Icon }) => (
                                   <button
                                     key={id}
                                     type="button"
                                     onClick={() => setActiveTab(id)}
                                     className={cn(
                                       "flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                                      activeTab === id ? "bg-elevated text-fg" : "text-fg-muted hover:text-fg"
+                                      currentTab === id ? "bg-elevated text-fg" : "text-fg-muted hover:text-fg"
                                     )}
                                   >
-                                    <Icon className={cn("h-3.5 w-3.5", activeTab === id && "text-brand")} />
+                                    <Icon className={cn("h-3.5 w-3.5", currentTab === id && "text-brand")} />
                                     {label}
                                   </button>
                                 ))}

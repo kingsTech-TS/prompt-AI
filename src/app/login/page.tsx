@@ -63,7 +63,7 @@ export default function LoginPage() {
     } catch (error: any) {
       triggerShake();
       toast({
-        title: "Login failed",
+        title: "Couldn't sign you in",
         description: error.message || "An error occurred during login",
         variant: "destructive",
       });

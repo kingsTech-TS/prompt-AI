@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -9,19 +9,60 @@ import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { promptsApi, collectionsApi, authApi } from "@/lib/api";
+import { ApiError } from "@/lib/errors";
+import { AGENTS } from "@/lib/agents";
+import { IdeaGenerateRequest, TargetAgent } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Sparkles, Lightbulb, Library, AlignLeft, Layers, ArrowRight, ChevronDown } from "lucide-react";
+import {
+  Sparkles,
+  Lightbulb,
+  Library,
+  FileText,
+  ListOrdered,
+  ArrowRight,
+  ChevronDown,
+  Bot,
+  Check,
+  Users,
+  LayoutDashboard,
+  Network,
+  ShieldCheck,
+  Database,
+  Rocket,
+} from "lucide-react";
 
 const EXAMPLES = [
-  "A restaurant ordering app with QR menus, a cart, payments and a live kitchen dashboard",
-  "A SaaS for booking local music bands, with reviews and calendar availability",
-  "A habit tracker with streaks, reminders and a social leaderboard",
+  "An app where gyms manage memberships and class bookings",
+  "A marketplace for booking local music bands",
+  "A habit tracker with streaks and friends",
+];
+
+// What the AI works out on its own, shown so users know a short idea is enough
+const INFERRED = [
+  { icon: Users, label: "User roles" },
+  { icon: LayoutDashboard, label: "Admin dashboard" },
+  { icon: Network, label: "Architecture" },
+  { icon: Database, label: "Data model" },
+  { icon: ShieldCheck, label: "Security" },
+  { icon: Rocket, label: "Deployment" },
+];
+
+const PROGRESS_STEPS = [
+  "Understanding your idea",
+  "Working out users, roles and permissions",
+  "Deciding if you need an admin dashboard",
+  "Designing the system architecture",
+  "Planning the data model and APIs",
+  "Covering security, testing and deployment",
+  "Writing your prompt",
 ];
 
 export default function IdeaPage() {
   const [idea, setIdea] = useState("");
   const [collectionId, setCollectionId] = useState("");
   const [outputMode, setOutputMode] = useState<"full" | "phased">("full");
+  const [targetAgent, setTargetAgent] = useState<TargetAgent>("general");
+  const [progressStep, setProgressStep] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -41,47 +82,50 @@ export default function IdeaPage() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (payload: { idea: string; collection_id?: string; output_mode: "full" | "phased" }) => {
+    mutationFn: async (payload: IdeaGenerateRequest) => {
       return await promptsApi.generateIdea(payload);
     },
     onSuccess: (data) => {
       toast({
-        title: "Developer Prompt Generated!",
-        description: "Redirecting to your new project spec...",
+        title: "Your prompt is ready",
+        description: "Opening your project blueprint...",
       });
       router.push(`/prompts/${data.id}`);
     },
-    onError: (error: any) => {
-      if (error.message && (error.message.includes("403") || error.message.toLowerCase().includes("limit") || error.message.toLowerCase().includes("forbidden"))) {
-        toast({
-          title: "Limit Reached",
-          description: "You have used all your available prompts. Please upgrade to Pro to generate more.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Generation Failed",
-          description: error.message || "An error occurred while generating the prompt",
-          variant: "destructive",
-        });
-      }
+    onError: (error: Error) => {
+      toast({
+        title: error instanceof ApiError && error.status === 403 ? "Can't generate a prompt" : "Couldn't generate your prompt",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
+
+  // Walk through the progress messages while the (long) generation runs
+  useEffect(() => {
+    if (!generateMutation.isPending) {
+      setProgressStep(0);
+      return;
+    }
+    const id = setInterval(() => setProgressStep((s) => Math.min(s + 1, PROGRESS_STEPS.length - 1)), 9000);
+    return () => clearInterval(id);
+  }, [generateMutation.isPending]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!idea.trim()) {
       toast({
-        title: "Input Required",
-        description: "Please describe your project idea.",
+        title: "Describe your idea first",
+        description: "A sentence or two about what you want to build is enough.",
         variant: "destructive",
       });
       return;
     }
 
-    const payload: { idea: string; collection_id?: string; output_mode: "full" | "phased" } = {
+    const payload: IdeaGenerateRequest = {
       idea: idea.trim(),
       output_mode: outputMode,
+      target_agent: targetAgent,
     };
 
     if (collectionId) {
@@ -92,9 +136,21 @@ export default function IdeaPage() {
   };
 
   const modes = [
-    { id: "full" as const, icon: AlignLeft, title: "Full prompt", text: "One comprehensive master prompt" },
-    { id: "phased" as const, icon: Layers, title: "Phased", text: "Step-by-step build phases" },
+    {
+      id: "full" as const,
+      icon: FileText,
+      title: "One full prompt",
+      text: "Paste once and let the agent build the whole app. Best for small to medium apps.",
+    },
+    {
+      id: "phased" as const,
+      icon: ListOrdered,
+      title: "Step-by-step phases",
+      text: "A project brief plus one prompt per phase, each with tasks and checks. Best for bigger apps.",
+    },
   ];
+
+  const busy = generateMutation.isPending;
 
   return (
     <ProtectedRoute>
@@ -109,10 +165,10 @@ export default function IdeaPage() {
                 Idea to blueprint
               </span>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
-                Describe your app. <span className="text-gradient">Get the full plan.</span>
+                Describe it in a sentence. <span className="text-gradient">We&apos;ll design the system.</span>
               </h1>
               <p className="mx-auto mt-3 max-w-lg text-[15px] text-fg-muted">
-                Tech stack, database schemas, environment variables and a step-by-step build prompt for AI coding tools.
+                You get a complete, production-ready prompt for your coding agent: roles, architecture, security and everything in between.
               </p>
             </div>
 
@@ -122,15 +178,29 @@ export default function IdeaPage() {
             >
               {/* Idea */}
               <textarea
-                placeholder="What do you want to build? Describe the users, the core features and anything that matters..."
+                placeholder="What do you want to build? e.g. “An app where gyms manage memberships and class bookings”"
                 value={idea}
                 onChange={(e) => setIdea(e.target.value)}
-                className="block min-h-[170px] w-full resize-none bg-transparent px-5 pt-5 text-[15px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle"
+                disabled={busy}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit(e);
+                }}
+                className="block min-h-[120px] w-full resize-none bg-transparent px-5 pt-5 text-[15px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle disabled:opacity-60"
               />
 
-              {!idea && (
-                <div className="flex flex-wrap gap-2 px-5 pb-4">
-                  {EXAMPLES.map((ex) => (
+              <div className="flex flex-wrap gap-2 px-5 pb-4">
+                {idea ? (
+                  <>
+                    <span className="text-[11px] text-fg-subtle">We&apos;ll work out:</span>
+                    {INFERRED.map(({ icon: Icon, label }) => (
+                      <span key={label} className="inline-flex items-center gap-1 rounded-full bg-elevated px-2 py-0.5 text-[11px] text-fg-muted">
+                        <Icon className="h-3 w-3 text-brand" />
+                        {label}
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  EXAMPLES.map((ex) => (
                     <button
                       key={ex}
                       type="button"
@@ -139,91 +209,160 @@ export default function IdeaPage() {
                     >
                       {ex}
                     </button>
-                  ))}
+                  ))
+                )}
+              </div>
+
+              {/* Target agent */}
+              <div className="border-t border-line px-5 py-4">
+                <span className="mb-2 flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+                  <Bot className="h-3.5 w-3.5" />
+                  Where will you paste it?
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {AGENTS.map((agent) => {
+                    const selected = targetAgent === agent.id;
+                    return (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => setTargetAgent(agent.id)}
+                        aria-pressed={selected}
+                        className={cn(
+                          "relative rounded-xl border px-3 py-2 text-left transition-all",
+                          selected
+                            ? "border-brand/60 bg-brand/10 shadow-sm"
+                            : "border-line bg-canvas/40 hover:border-line-strong"
+                        )}
+                      >
+                        <span className={cn("block text-[13px] font-medium", selected ? "text-fg" : "text-fg-muted")}>
+                          {agent.label}
+                        </span>
+                        <span className="block text-[11px] text-fg-subtle">{agent.description}</span>
+                        {selected && (
+                          <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-brand animate-in zoom-in-50 duration-200" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
 
-              {/* Options */}
-              <div className="grid gap-4 border-t border-line px-5 py-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-fg-muted">
-                    <Library className="h-3.5 w-3.5" />
-                    Tech stack
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={collectionId}
-                      onChange={(e) => setCollectionId(e.target.value)}
-                      className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-line bg-canvas/60 pl-3 pr-9 text-sm text-fg outline-none transition-colors hover:border-line-strong focus:border-brand/60"
-                    >
-                      <option value="">AI recommended</option>
-
-                      {collections && collections.length > 0 && (
-                        <optgroup label="Collections">
-                          {collections.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name} ({c.type})
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-
-                      {subCollections && subCollections.length > 0 && (
-                        <optgroup label="Sub-Collections">
-                          {subCollections.map((sc) => (
-                            <option key={sc.id} value={sc.id}>
-                              {sc.name} (Multi-stack)
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
-                  </div>
-                </div>
-
-                <div>
-                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-fg-muted">
-                    <Layers className="h-3.5 w-3.5" />
-                    Output
-                  </span>
-                  <div className="grid h-10 grid-cols-2 rounded-xl border border-line bg-canvas/60 p-0.5">
-                    {modes.map(({ id, icon: Icon, title, text }) => (
+              {/* Output mode */}
+              <div className="border-t border-line px-5 py-4">
+                <span className="mb-2 flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+                  <ListOrdered className="h-3.5 w-3.5" />
+                  How do you want it?
+                </span>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {modes.map(({ id, icon: Icon, title, text }) => {
+                    const selected = outputMode === id;
+                    return (
                       <button
                         key={id}
                         type="button"
-                        title={text}
                         onClick={() => setOutputMode(id)}
+                        aria-pressed={selected}
                         className={cn(
-                          "flex items-center justify-center gap-1.5 rounded-[10px] text-xs font-medium transition-all",
-                          outputMode === id ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg"
+                          "flex gap-3 rounded-xl border p-3 text-left transition-all",
+                          selected ? "border-brand/60 bg-brand/10" : "border-line bg-canvas/40 hover:border-line-strong"
                         )}
                       >
-                        <Icon className={cn("h-3.5 w-3.5", outputMode === id && "text-brand")} />
-                        {title}
+                        <span
+                          className={cn(
+                            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
+                            selected ? "bg-brand-gradient text-brand-fg" : "bg-elevated text-fg-muted"
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span>
+                          <span className="block text-[13px] font-medium text-fg">{title}</span>
+                          <span className="mt-0.5 block text-[11px] leading-relaxed text-fg-muted">{text}</span>
+                        </span>
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
+
+              {/* Tech stack */}
+              <div className="border-t border-line px-5 py-4">
+                <label className="mb-2 flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+                  <Library className="h-3.5 w-3.5" />
+                  Tech stack
+                </label>
+                <div className="relative">
+                  <select
+                    value={collectionId}
+                    onChange={(e) => setCollectionId(e.target.value)}
+                    className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-line bg-canvas/60 pl-3 pr-9 text-sm text-fg outline-none transition-colors hover:border-line-strong focus:border-brand/60"
+                  >
+                    <option value="">Let the AI choose the best stack</option>
+
+                    {collections && collections.length > 0 && (
+                      <optgroup label="Collections">
+                        {collections.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.type})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+
+                    {subCollections && subCollections.length > 0 && (
+                      <optgroup label="Sub-Collections">
+                        {subCollections.map((sc) => (
+                          <option key={sc.id} value={sc.id}>
+                            {sc.name} (Multi-stack)
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+                </div>
+              </div>
+
+              {/* Progress while generating */}
+              {busy && (
+                <div className="border-t border-line bg-brand/5 px-5 py-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <div className="flex items-center gap-3">
+                    <span className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                    <p key={progressStep} className="text-sm font-medium text-fg animate-in fade-in slide-in-from-bottom-1 duration-300">
+                      {PROGRESS_STEPS[progressStep]}...
+                    </p>
+                  </div>
+                  <div className="mt-3 h-1 overflow-hidden rounded-full bg-elevated">
+                    <div
+                      className="h-full rounded-full bg-brand-gradient transition-all ease-linear"
+                      style={{
+                        width: `${((progressStep + 1) / PROGRESS_STEPS.length) * 95}%`,
+                        transitionDuration: "9000ms",
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-fg-subtle">
+                    Detailed blueprints take a minute or two. Keep this tab open.
+                  </p>
+                </div>
+              )}
 
               {/* Footer */}
               <div className="flex flex-col gap-3 border-t border-line bg-canvas/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-fg-subtle">
-                  {user && user.role !== "admin"
-                    ? `${user.prompts_used} / ${user.max_prompts} prompts used`
-                    : ""}
+                  {user && user.role !== "admin" ? `${user.prompts_used} / ${user.max_prompts} prompts used` : ""}
                 </p>
-                <Button type="submit" disabled={!idea.trim() || generateMutation.isPending} className="h-11 px-5">
-                  {generateMutation.isPending ? (
+                <Button type="submit" disabled={!idea.trim() || busy} className="h-11 px-5">
+                  {busy ? (
                     <>
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Architecting...
+                      Designing your system...
                     </>
                   ) : (
                     <>
                       <Sparkles />
-                      Generate blueprint
+                      Generate prompt
                       <ArrowRight />
                     </>
                   )}
@@ -232,7 +371,11 @@ export default function IdeaPage() {
             </form>
 
             <p className="mt-6 animate-rise text-center text-xs text-fg-subtle [animation-delay:160ms]">
-              Tip: save your favourite stacks in <Link href="/collections" className="text-fg-muted underline-offset-2 hover:text-fg hover:underline">Collections</Link> to reuse them here.
+              Tip: save your favourite stacks in{" "}
+              <Link href="/collections" className="text-fg-muted underline-offset-2 hover:text-fg hover:underline">
+                Collections
+              </Link>{" "}
+              to reuse them here.
             </p>
           </div>
         </main>

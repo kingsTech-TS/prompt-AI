@@ -79,7 +79,7 @@ export default function RegisterPage() {
     } catch (error: any) {
       triggerShake();
       toast({
-        title: "Registration failed",
+        title: "Couldn't create your account",
         description: error.message || "An error occurred during registration",
         variant: "destructive",
       });

@@ -1,4 +1,5 @@
 import { PromptResponse } from "@/lib/types";
+import { agentById } from "@/lib/agents";
 
 const FENCE_RE = /^\s*(```|~~~)/;
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
@@ -143,23 +144,70 @@ export function buildPromptMarkdown(prompt: PromptResponse): string {
     day: "numeric",
   });
 
-  const sections: string[] = [
-    `# ${prompt.title}`,
-    markdownTable(["Field", "Value"], [
-      ["Type", prompt.source_type === "idea" ? "Idea → Development Blueprint" : "UI/UX Developer Prompt"],
-      ["Source", sourceLabel(prompt)],
-      ["Generated", created],
-    ]),
-    "---",
-  ];
+  const isIdea = prompt.source_type === "idea";
+  const isPhased = !!prompt.phases?.length;
 
-  if (prompt.source_type !== "idea") {
+  const meta: string[][] = [
+    ["Type", isIdea ? (isPhased ? "Phased build plan" : "Full build prompt") : "UI/UX Developer Prompt"],
+    ["Source", sourceLabel(prompt)],
+  ];
+  if (isIdea) meta.push(["Written for", agentById(prompt.target_agent).label]);
+  meta.push(["Generated", created]);
+
+  const sections: string[] = [`# ${prompt.title}`, markdownTable(["Field", "Value"], meta), "---"];
+
+  if (!isIdea) {
     sections.push(shiftHeadings(tidyMarkdown(extractPromptText(prompt.generated_prompt)), 2));
     return tidyMarkdown(sections.join("\n\n")) + "\n";
   }
 
+  if (prompt.summary) sections.push(prompt.summary.trim());
+
   if (prompt.idea_text) {
     sections.push("## Project Idea", prompt.idea_text.trim().split("\n").map((l) => `> ${l}`).join("\n"));
+  }
+
+  // What the AI decided about the system
+  const a = prompt.analysis;
+  if (a) {
+    sections.push("## System Overview");
+    const facts: string[][] = [];
+    if (a.app_type) facts.push(["App type", a.app_type]);
+    if (a.target_users.length) facts.push(["Target users", a.target_users.join(", ")]);
+    if (a.needs_admin_dashboard != null) {
+      facts.push(["Admin dashboard", `${a.needs_admin_dashboard ? "Yes" : "No"}${a.dashboard_reason ? ` (${a.dashboard_reason})` : ""}`]);
+    }
+    if (a.integrations.length) facts.push(["Integrations", a.integrations.join(", ")]);
+    if (facts.length) sections.push(markdownTable(["", "Details"], facts));
+    if (a.roles.length) {
+      sections.push(
+        "### Roles & Permissions",
+        markdownTable(
+          ["Role", "Description", "Permissions"],
+          a.roles.map((r) => [r.name, r.description, r.permissions.join("; ")])
+        )
+      );
+    }
+    if (a.core_features.length) {
+      sections.push("### Core Features", a.core_features.map((f) => `- ${f}`).join("\n"));
+    }
+  }
+
+  // The prompt itself comes next so it's easy to find
+  const fullPrompt = extractPromptText(prompt.full_prompt || prompt.generated_prompt);
+  if (fullPrompt.trim()) {
+    sections.push(isPhased ? "## Project Brief" : "## Full Prompt", shiftHeadings(tidyMarkdown(fullPrompt), 3));
+  }
+
+  if (isPhased) {
+    sections.push("## Build Phases", "Paste the project brief first, then each phase in order.");
+    for (const phase of prompt.phases!) {
+      sections.push(
+        `### Phase ${phase.phase_number}: ${phase.title}`,
+        ...(phase.goal && !phase.content.includes("**Goal:**") ? [`**Goal:** ${phase.goal}`] : []),
+        shiftHeadings(tidyMarkdown(phase.content), 4)
+      );
+    }
   }
 
   const stack = Object.entries(prompt.recommended_stack ?? {}).filter(([, techs]) => techs?.length);
@@ -192,21 +240,6 @@ export function buildPromptMarkdown(prompt: PromptResponse): string {
           ["Field", "Type", "Required"],
           schema.fields.map((f) => [`\`${f.name}\``, f.type, f.required ? "Yes" : "No"])
         )
-      );
-    }
-  }
-
-  const fullPrompt = extractPromptText(prompt.full_prompt || prompt.generated_prompt);
-  if (fullPrompt.trim()) {
-    sections.push("## Development Blueprint", shiftHeadings(tidyMarkdown(fullPrompt), 3));
-  }
-
-  if (prompt.phases?.length) {
-    sections.push("## Phased Roadmap");
-    for (const phase of prompt.phases) {
-      sections.push(
-        `### Phase ${phase.phase_number}: ${phase.title}`,
-        shiftHeadings(tidyMarkdown(phase.content), 4)
       );
     }
   }

@@ -19,6 +19,7 @@ import {
   SubCollectionResponse,
   IdeaGenerateRequest,
 } from "@/lib/types";
+import { ApiError, friendlyMessage, networkErrorMessage } from "@/lib/errors";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://prompt-ai-psi-blush.vercel.app";
 
@@ -28,6 +29,27 @@ const getAuthHeaders = () => {
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 };
+
+// Sends the request and converts any failure into an ApiError with a user-friendly message
+async function send<T>(url: string, init: RequestInit): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${url}`, init);
+  } catch {
+    throw new ApiError(networkErrorMessage(), 0);
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const detail = (errorData as { detail?: unknown }).detail;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[api] ${init.method ?? "GET"} ${url} -> ${response.status}`, detail);
+    }
+    throw new ApiError(friendlyMessage(response.status, detail, url), response.status, detail);
+  }
+
+  return response.json();
+}
 
 // Helper for JSON requests
 async function fetchJson<T>(
@@ -49,19 +71,7 @@ async function fetchJson<T>(
     });
   }
 
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({
-      detail: "An error occurred",
-    }));
-    throw new Error(errorData.detail || `HTTP ${response.status}`);
-  }
-
-  return response.json();
+  return send<T>(url, { ...options, headers });
 }
 
 // Helper for FormData requests (for file uploads)
@@ -84,21 +94,7 @@ async function fetchFormData<T>(
     });
   }
 
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    method: "POST",
-    ...options,
-    headers,
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({
-      detail: "An error occurred",
-    }));
-    throw new Error(errorData.detail || `HTTP ${response.status}`);
-  }
-
-  return response.json();
+  return send<T>(url, { method: "POST", ...options, headers, body: formData });
 }
 
 // Auth API

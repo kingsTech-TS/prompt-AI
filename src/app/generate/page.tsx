@@ -8,6 +8,7 @@ import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { promptsApi, authApi } from "@/lib/api";
+import { ApiError } from "@/lib/errors";
 import { Upload, X, ArrowRight, Link as LinkIcon, Image as ImageIcon, Sparkles } from "lucide-react";
 import Image from "next/image";
 
@@ -36,21 +37,12 @@ export default function GeneratePage() {
       });
       router.push(`/prompts/${data.id}`);
     },
-    onError: (error: any) => {
-      if (error.message && (error.message.includes("403") || error.message.toLowerCase().includes("limit") || error.message.toLowerCase().includes("forbidden"))) {
-        toast({
-          title: "Limit Reached",
-          description: "You have used all your available prompts. Please upgrade to Pro to generate more.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Failed to generate prompt",
-          description:
-            error.message || "An error occurred while generating the prompt",
-          variant: "destructive",
-        });
-      }
+    onError: (error: Error) => {
+      toast({
+        title: error instanceof ApiError && error.status === 403 ? "Can't generate a prompt" : "Couldn't generate your prompt",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
