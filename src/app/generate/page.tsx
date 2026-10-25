@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { promptsApi, authApi } from "@/lib/api";
 import { ApiError } from "@/lib/errors";
+import { ThinkingStatus, type ThinkingStep } from "@/components/thinking-status";
 import { Upload, X, ArrowRight, Link as LinkIcon, Image as ImageIcon, Sparkles } from "lucide-react";
 import Image from "next/image";
 
@@ -98,6 +99,24 @@ export default function GeneratePage() {
 
   const limitReached = user ? user.role !== "admin" && user.prompts_used >= user.max_prompts : false;
   const canSubmit = !!url.trim() || images.length > 0;
+  const busy = generateMutation.isPending;
+
+  // Same order the backend works in: upload images, screenshot the URL, then the AI analysis
+  const thinkingSteps: ThinkingStep[] = [
+    ...(images.length > 0
+      ? [{ label: `Uploading ${images.length === 1 ? "your screenshot" : `${images.length} screenshots`}`, seconds: 3 + images.length * 2 }]
+      : []),
+    ...(url.trim()
+      ? [
+          { label: "Opening the website", seconds: 6 },
+          { label: "Capturing a full-page screenshot", seconds: 10 },
+        ]
+      : []),
+    { label: "Reading the layout and grid", seconds: 8 },
+    { label: "Measuring colors, typography and spacing", seconds: 10 },
+    { label: "Mapping every component and its states", seconds: 12 },
+    { label: "Writing your build-ready prompt", seconds: 1 },
+  ];
 
   return (
     <ProtectedRoute>
@@ -132,9 +151,10 @@ export default function GeneratePage() {
                   placeholder="https://example.com"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="h-14 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-subtle"
+                  disabled={busy}
+                  className="h-14 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-subtle disabled:opacity-60"
                 />
-                {url && (
+                {url && !busy && (
                   <button
                     type="button"
                     onClick={() => setUrl("")}
@@ -146,8 +166,16 @@ export default function GeneratePage() {
                 )}
               </div>
 
-              {/* Dropzone */}
+              {/* Dropzone, or the thinking status while analyzing */}
               <div className="p-4">
+                {busy ? (
+                  <div className="rounded-2xl border border-brand/20 bg-brand/5 px-5 py-5">
+                    <ThinkingStatus
+                      steps={thinkingSteps}
+                      note="Detailed analysis usually takes under a minute. Keep this tab open."
+                    />
+                  </div>
+                ) : (
                 <div
                   className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-all ${
                     isDragOver
@@ -179,11 +207,18 @@ export default function GeneratePage() {
                   </p>
                   <p className="mt-1 text-xs text-fg-subtle">PNG, JPG or GIF · up to 10MB each</p>
                 </div>
+                )}
 
                 {imagePreviews.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2.5">
                     {imagePreviews.map((preview, index) => (
-                      <div key={index} className="group relative h-20 w-20 overflow-hidden rounded-xl border border-line bg-elevated">
+                      <div
+                        key={index}
+                        className={`group relative h-20 w-20 overflow-hidden rounded-xl border bg-elevated transition-colors ${
+                          busy ? "scan-line border-brand/40" : "border-line"
+                        }`}
+                        style={busy ? ({ "--scan-delay": `${index * 0.4}s` } as React.CSSProperties) : undefined}
+                      >
                         <Image
                           src={preview}
                           alt={`Preview ${index + 1}`}
@@ -191,6 +226,7 @@ export default function GeneratePage() {
                           height={80}
                           className="h-20 w-20 object-cover"
                         />
+                        {!busy && (
                         <button
                           type="button"
                           className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white transition-opacity hover:bg-red-500 sm:opacity-0 sm:group-hover:opacity-100"
@@ -202,6 +238,7 @@ export default function GeneratePage() {
                         >
                           <X className="h-3 w-3" />
                         </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -222,9 +259,9 @@ export default function GeneratePage() {
                 <Button
                   type="submit"
                   className="h-11 px-5"
-                  disabled={!canSubmit || generateMutation.isPending || (user ? user.role === "admin" || limitReached : false)}
+                  disabled={!canSubmit || busy || (user ? user.role === "admin" || limitReached : false)}
                 >
-                  {generateMutation.isPending ? (
+                  {busy ? (
                     <>
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                       Analyzing design...

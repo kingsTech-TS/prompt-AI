@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { promptsApi, collectionsApi, authApi } from "@/lib/api";
 import { ApiError } from "@/lib/errors";
+import { ThinkingStatus, type ThinkingStep } from "@/components/thinking-status";
 import { AGENTS } from "@/lib/agents";
 import { IdeaGenerateRequest, TargetAgent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -47,14 +48,14 @@ const INFERRED = [
   { icon: Rocket, label: "Deployment" },
 ];
 
-const PROGRESS_STEPS = [
-  "Understanding your idea",
-  "Working out users, roles and permissions",
-  "Deciding if you need an admin dashboard",
-  "Designing the system architecture",
-  "Planning the data model and APIs",
-  "Covering security, testing and deployment",
-  "Writing your prompt",
+const THINKING_STEPS: ThinkingStep[] = [
+  { label: "Understanding your idea", seconds: 6 },
+  { label: "Working out users, roles and permissions", seconds: 10 },
+  { label: "Deciding if you need an admin dashboard", seconds: 8 },
+  { label: "Designing the system architecture", seconds: 14 },
+  { label: "Planning the data model and APIs", seconds: 16 },
+  { label: "Covering security, testing and deployment", seconds: 16 },
+  { label: "Writing your prompt", seconds: 1 },
 ];
 
 export default function IdeaPage() {
@@ -62,7 +63,6 @@ export default function IdeaPage() {
   const [collectionId, setCollectionId] = useState("");
   const [outputMode, setOutputMode] = useState<"full" | "phased">("full");
   const [targetAgent, setTargetAgent] = useState<TargetAgent>("general");
-  const [progressStep, setProgressStep] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -100,16 +100,6 @@ export default function IdeaPage() {
       });
     },
   });
-
-  // Walk through the progress messages while the (long) generation runs
-  useEffect(() => {
-    if (!generateMutation.isPending) {
-      setProgressStep(0);
-      return;
-    }
-    const id = setInterval(() => setProgressStep((s) => Math.min(s + 1, PROGRESS_STEPS.length - 1)), 9000);
-    return () => clearInterval(id);
-  }, [generateMutation.isPending]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -326,25 +316,11 @@ export default function IdeaPage() {
 
               {/* Progress while generating */}
               {busy && (
-                <div className="border-t border-line bg-brand/5 px-5 py-4 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <div className="flex items-center gap-3">
-                    <span className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-                    <p key={progressStep} className="text-sm font-medium text-fg animate-in fade-in slide-in-from-bottom-1 duration-300">
-                      {PROGRESS_STEPS[progressStep]}...
-                    </p>
-                  </div>
-                  <div className="mt-3 h-1 overflow-hidden rounded-full bg-elevated">
-                    <div
-                      className="h-full rounded-full bg-brand-gradient transition-all ease-linear"
-                      style={{
-                        width: `${((progressStep + 1) / PROGRESS_STEPS.length) * 95}%`,
-                        transitionDuration: "9000ms",
-                      }}
-                    />
-                  </div>
-                  <p className="mt-2 text-[11px] text-fg-subtle">
-                    Detailed blueprints take a minute or two. Keep this tab open.
-                  </p>
+                <div className="border-t border-line bg-brand/5 px-5 py-5">
+                  <ThinkingStatus
+                    steps={THINKING_STEPS}
+                    note="Detailed blueprints take a minute or two. Keep this tab open."
+                  />
                 </div>
               )}
 
