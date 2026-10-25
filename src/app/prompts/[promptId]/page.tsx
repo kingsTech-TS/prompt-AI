@@ -25,7 +25,8 @@ import {
   ChatMessageRequest,
 } from "@/lib/types";
 import { promptsApi, chatApi } from "@/lib/api";
-import { Copy, Trash2, Send, Sparkles, User, Check } from "lucide-react";
+import { buildPromptMarkdown, downloadMarkdown, extractPromptText, tidyMarkdown } from "@/lib/markdown";
+import { Copy, Trash2, Send, Sparkles, User, Check, Download } from "lucide-react";
 import Image from "next/image";
 
 export default function PromptDetailPage() {
@@ -102,13 +103,23 @@ export default function PromptDetailPage() {
   };
 
   const handleCopyPrompt = () => {
-    if (prompt?.generated_prompt) {
-      navigator.clipboard.writeText(prompt.generated_prompt);
+    if (prompt) {
+      navigator.clipboard.writeText(buildPromptMarkdown(prompt));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast({
         title: "Prompt copied!",
-        description: "The prompt has been copied to your clipboard",
+        description: "The prompt has been copied to your clipboard as Markdown",
+      });
+    }
+  };
+
+  const handleDownloadPrompt = () => {
+    if (prompt) {
+      downloadMarkdown(buildPromptMarkdown(prompt));
+      toast({
+        title: "Download started",
+        description: "Saved as prompt.md",
       });
     }
   };
@@ -202,7 +213,7 @@ export default function PromptDetailPage() {
     : [
         {
           role: "assistant" as const,
-          content: prompt.generated_prompt,
+          content: extractPromptText(prompt.generated_prompt),
           timestamp: prompt.created_at,
         },
         ...chatSession.messages,
@@ -220,6 +231,11 @@ export default function PromptDetailPage() {
       description: "Copied message content to clipboard.",
     });
   };
+
+  // The first AI message is the generated prompt: export the full structured document for it.
+  // Follow-up chat replies are exported as their own Markdown.
+  const messageMarkdown = (content: string, isSystemPrompt: boolean) =>
+    isSystemPrompt ? buildPromptMarkdown(prompt) : tidyMarkdown(content) + "\n";
 
   const formatTime = (ts?: string) => {
     if (!ts) return "";
@@ -288,6 +304,16 @@ export default function PromptDetailPage() {
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDownloadPrompt}
+                  className="h-9 w-9 text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)] rounded-xl transition-all"
+                  title="Download as prompt.md"
+                >
+                  <Download className="h-4 w-4" />
                 </Button>
 
                 <Dialog>
@@ -398,15 +424,24 @@ export default function PromptDetailPage() {
                               : "bg-gradient-to-br from-[var(--theme-accent-1)] to-[var(--theme-accent-2)] text-[var(--theme-accent-text)] rounded-2xl rounded-br-md shadow-md hover:brightness-105"
                           }`}
                         >
-                          {/* Copy button for AI messages */}
-                          {isAssistant && !(isSystemPrompt && prompt.source_type === "idea") && (
-                            <button
-                              onClick={() => copyToClipboard(msg.content)}
-                              className="absolute right-2.5 top-2.5 p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)] opacity-0 group-hover/msg:opacity-100 transition-all"
-                              title="Copy"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </button>
+                          {/* Copy / download (.md) buttons for AI messages */}
+                          {isAssistant && (
+                            <div className="absolute right-2.5 top-2.5 z-10 flex flex-col gap-1 opacity-0 group-hover/msg:opacity-100 transition-all">
+                              <button
+                                onClick={() => copyToClipboard(messageMarkdown(msg.content, isSystemPrompt))}
+                                className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)]"
+                                title="Copy as Markdown"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => downloadMarkdown(messageMarkdown(msg.content, isSystemPrompt))}
+                                className="p-1.5 rounded-lg text-[var(--theme-text-tertiary)] hover:text-[var(--theme-accent-1)] hover:bg-[var(--theme-background-tertiary)]"
+                                title="Download as prompt.md"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           )}
 
                           {isSystemPrompt && prompt.source_type === "idea" ? (
@@ -489,7 +524,7 @@ export default function PromptDetailPage() {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => copyToClipboard(prompt.full_prompt || prompt.generated_prompt)}
+                                        onClick={() => copyToClipboard(extractPromptText(prompt.full_prompt || prompt.generated_prompt))}
                                         className="h-8 px-2.5 rounded-lg text-xs hover:bg-[var(--theme-background)] flex items-center gap-1 border border-[var(--theme-border)]"
                                       >
                                         <Copy className="h-3 w-3" />
@@ -497,7 +532,7 @@ export default function PromptDetailPage() {
                                       </Button>
                                     </div>
                                     <div className="text-xs sm:text-sm text-[var(--theme-text)] whitespace-pre-wrap max-h-[400px] overflow-y-auto pr-1">
-                                      {prompt.full_prompt || prompt.generated_prompt}
+                                      {extractPromptText(prompt.full_prompt || prompt.generated_prompt)}
                                     </div>
                                   </div>
                                 )}
@@ -654,7 +689,9 @@ export default function PromptDetailPage() {
                               </div>
                             </div>
                           ) : (
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap">
+                              {isSystemPrompt ? extractPromptText(msg.content) : msg.content}
+                            </p>
                           )}
                         </div>
 

@@ -35,7 +35,7 @@ interface Theme {
 }
 
 // Define our 5+ themes with both dark and light
-const THEMES: Record<ThemeName, Theme> = {
+export const THEMES: Record<ThemeName, Theme> = {
   "dark-orange": {
     name: "dark-orange",
     label: "Dark Orange",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme, ThemeName } from "@/contexts/theme-context";
+import { useTheme, ThemeName, THEMES } from "@/contexts/theme-context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -65,8 +65,14 @@ export function ThemeSelector() {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  {/* Color preview */}
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `var(--theme-accent-1)` }} />
+                  {/* Color preview: this theme's own colors, not the active theme's */}
+                  <div
+                    className="w-4 h-4 rounded-full border"
+                    style={{
+                      background: `linear-gradient(135deg, ${THEMES[theme.name].colors.accent1} 50%, ${THEMES[theme.name].colors.background} 50%)`,
+                      borderColor: THEMES[theme.name].colors.border,
+                    }}
+                  />
                   {theme.label}
                 </div>
               </DropdownMenuItem>
