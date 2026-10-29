@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/protected-route";
 import Sidebar from "@/components/sidebar";
 import { Markdown } from "@/components/markdown";
+import { UiPreview } from "@/components/ui-preview";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,9 +24,11 @@ import {
   ChatSessionResponse,
   ChatMessageRequest,
   IdeaPhase,
+  PreviewResponse,
 } from "@/lib/types";
 import { agentById } from "@/lib/agents";
-import { promptsApi, chatApi } from "@/lib/api";
+import { promptsApi, chatApi, authApi } from "@/lib/api";
+import { previewUsage } from "@/lib/plans";
 import { buildPromptMarkdown, downloadMarkdown, extractPromptText, tidyMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import {
@@ -49,6 +52,7 @@ import {
   Minus,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -60,6 +64,7 @@ type DisplayMessage = {
 };
 
 type IdeaTab = "overview" | "full" | "stack" | "env" | "db" | "phases";
+type UiTab = "prompt" | "preview";
 
 const UI_SUGGESTIONS = [
   "Convert this to Next.js + Tailwind CSS",
@@ -84,6 +89,7 @@ export default function PromptDetailPage() {
   const [copied, setCopied] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<IdeaTab>("overview");
+  const [uiTab, setUiTab] = useState<UiTab>("prompt");
   const [activePhaseIndex, setActivePhaseIndex] = useState<number>(0);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -103,6 +109,41 @@ export default function PromptDetailPage() {
         return await chatApi.getSession(promptId);
       },
     });
+
+  // Only fetched once the Preview tab is opened (the tab exists for UI prompts only)
+  const { data: preview, isLoading: previewLoading } = useQuery<PreviewResponse>({
+    queryKey: ["preview", promptId],
+    queryFn: () => promptsApi.getPreview(promptId),
+    enabled: uiTab === "preview",
+  });
+
+  const { data: user } = useQuery({
+    queryKey: ["user"],
+    queryFn: () => authApi.getMe(),
+  });
+  const previews = user ? previewUsage(user) : null;
+  const previewsLeft = !previews?.limitReached;
+
+  const previewMutation = useMutation({
+    mutationFn: (content?: string) => promptsApi.generatePreview(promptId, content),
+    onSuccess: (data) => queryClient.setQueryData(["preview", promptId], data),
+    // Success uses one of the month's previews; a failure is refunded. Either way, refresh the count.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["user"] }),
+    onError: (error: any) => {
+      toast({
+        title: "Preview failed",
+        description: error.message || "We couldn't build a preview this time",
+        variant: "destructive",
+      });
+    },
+  });
+
+  /** Build a preview of the prompt, optionally with a chat refinement applied, and show it. */
+  const previewVersion = (content?: string) => {
+    setUiTab("preview");
+    previewMutation.mutate(content);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: ChatMessageRequest) => {
@@ -744,9 +785,42 @@ export default function PromptDetailPage() {
                               <div className="max-h-[60vh] overflow-y-auto px-5 py-5">{renderIdeaContent()}</div>
                             </>
                           ) : (
-                            <div className="max-h-[60vh] overflow-y-auto px-5 py-5">
-                              <Markdown content={msg.content} />
-                            </div>
+                            <>
+                              <div className="flex gap-1 overflow-x-auto border-b border-line px-3 py-2">
+                                {([
+                                  { id: "prompt", label: "Prompt", icon: FileText },
+                                  { id: "preview", label: "Preview", icon: Eye },
+                                ] as const).map(({ id, label, icon: Icon }) => (
+                                  <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => setUiTab(id)}
+                                    className={cn(
+                                      "flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                                      uiTab === id ? "bg-elevated text-fg" : "text-fg-muted hover:text-fg"
+                                    )}
+                                  >
+                                    <Icon className={cn("h-3.5 w-3.5", uiTab === id && "text-brand")} />
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                              {uiTab === "preview" ? (
+                                <UiPreview
+                                  html={preview?.html}
+                                  generatedAt={preview?.generated_at}
+                                  isLoading={previewLoading}
+                                  isGenerating={previewMutation.isPending}
+                                  onGenerate={() => previewVersion()}
+                                  canGenerate={previewsLeft}
+                                  allowanceLabel={previews?.remainingLabel}
+                                />
+                              ) : (
+                                <div className="max-h-[60vh] overflow-y-auto px-5 py-5">
+                                  <Markdown content={msg.content} />
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       ) : (
@@ -771,6 +845,17 @@ export default function PromptDetailPage() {
                           <Download className="h-3.5 w-3.5" />
                           .md
                         </button>
+                        {!isIdea && !isSystemPrompt && (
+                          <button
+                            onClick={() => previewVersion(msg.content)}
+                            disabled={previewMutation.isPending || !previewsLeft}
+                            className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-subtle transition-colors hover:bg-elevated hover:text-fg disabled:opacity-40"
+                            title={previewsLeft ? "Preview the prompt with this change applied" : "No previews left this month"}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Preview
+                          </button>
+                        )}
                         {msg.timestamp && (
                           <span className="ml-2 text-[11px] text-fg-subtle">{formatTime(msg.timestamp)}</span>
                         )}

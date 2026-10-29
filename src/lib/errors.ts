@@ -45,7 +45,9 @@ export function friendlyMessage(status: number, detail: unknown, path: string): 
   if (lower.includes("invalid or expired token")) return "This reset link is invalid or has expired. Please request a new one.";
   if (lower.includes("reached your limit")) {
     const n = text.match(/limit of (\d+)/)?.[1];
-    return `You've used all ${n ? `${n} ` : ""}of your free prompts. Contact an admin to upgrade your plan.`;
+    const renews = text.match(/renew on ([^.]+)/)?.[1];
+    const what = lower.includes("preview") ? "previews" : "prompts";
+    return `You've used all ${n ? `${n} ` : ""}of this month's ${what}.${renews ? ` They renew on ${renews}.` : ""} Contact an admin to upgrade your plan.`;
   }
   if (lower.includes("admins are not allowed")) return "Admin accounts can't generate prompts. Sign in with a regular account to try it.";
   if (lower.includes("either 'images' or 'url'")) return "Add a website link or at least one screenshot to generate a prompt.";
@@ -59,6 +61,11 @@ export function friendlyMessage(status: number, detail: unknown, path: string): 
     return lower.includes("timeout") || lower.includes("timed out")
       ? "The AI took too long to respond. Please try again, or shorten your input."
       : "The AI couldn't generate your prompt this time. Please try again.";
+  }
+  if (lower.startsWith("preview generation failed")) {
+    return lower.includes("timeout") || lower.includes("timed out")
+      ? "The preview took too long to build. Please try again."
+      : "We couldn't build a preview this time. Please try again.";
   }
   if (lower.includes("failed to send reset email") || lower.includes("smtp")) {
     return "We couldn't send the email right now. Please try again later.";

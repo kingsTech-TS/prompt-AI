@@ -14,26 +14,38 @@ interface UserLogin {
   password: string;
 }
 
+export type Plan = "free" | "pro" | "super";
+
 interface UserResponse extends UserBase {
   id: string;
   role: "user" | "admin";
-  subscription: "free" | "pro";
+  subscription: Plan;
+  /** Monthly limit (ignored when unlimited_prompts is true). */
   max_prompts: number;
+  /** Prompts used in the current month. */
   prompts_used: number;
+  /** Preview generations used in the current month (same limit as prompts). */
+  previews_used: number;
+  unlimited_prompts: boolean;
+  /** When the monthly allowance renews. */
+  usage_resets_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface AdminUpdateUserRequest {
   role?: "user" | "admin";
-  subscription?: "free" | "pro";
+  subscription?: Plan;
   max_prompts?: number;
+  unlimited_prompts?: boolean;
+  /** Set this month's usage back to 0. */
+  reset_usage?: boolean;
 }
 
 export interface BulkEmailRequest {
   subject: string;
   body: string;
-  target: "all" | "free" | "pro";
+  target: "all" | Plan;
 }
 
 interface Token {
@@ -184,6 +196,12 @@ interface PromptResponse {
 
   created_at: string;
   updated_at: string;
+}
+
+/** A rendered HTML preview of the interface a UI prompt describes. `html` is null until one is generated. */
+export interface PreviewResponse {
+  html: string | null;
+  generated_at: string | null;
 }
 
 interface PaginatedPromptResponse {

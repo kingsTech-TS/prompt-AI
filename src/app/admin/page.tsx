@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { adminApi, authApi } from "@/lib/api";
-import { UserResponse } from "@/lib/types";
+import { AdminUpdateUserRequest, BulkEmailRequest, Plan, UserResponse } from "@/lib/types";
+import { PLANS, planById, previewUsage, promptUsage } from "@/lib/plans";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -34,7 +36,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Shield, Mail, Trash2, Edit2, Loader2 } from "lucide-react";
+import { Shield, Mail, Trash2, Edit2, Loader2, Infinity as InfinityIcon } from "lucide-react";
+
+/** Monthly limit chosen in the edit dialog: the plan's default, a custom number, or unlimited. */
+type LimitChoice = "plan" | "unlimited" | number;
+
+const EXTRA_PROMPT_PRESETS = [10, 20, 50];
+
+const PLAN_BADGE: Record<Plan, string> = {
+  free: "bg-[var(--theme-background-tertiary)] text-[var(--theme-text-secondary)]",
+  pro: "bg-amber-500/10 text-amber-500 border border-amber-500/20",
+  super: "bg-violet-500/10 text-violet-400 border border-violet-500/20",
+};
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -43,12 +56,14 @@ export default function AdminDashboard() {
 
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
   const [editRole, setEditRole] = useState<"user" | "admin">("user");
-  const [editSubscription, setEditSubscription] = useState<"free" | "pro">("free");
+  const [editSubscription, setEditSubscription] = useState<Plan>("free");
+  const [editLimit, setEditLimit] = useState<LimitChoice>("plan");
+  const [resetUsage, setResetUsage] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
-  const [emailTarget, setEmailTarget] = useState<"all" | "free" | "pro">("all");
+  const [emailTarget, setEmailTarget] = useState<BulkEmailRequest["target"]>("all");
 
   const { data: user, isLoading: isUserLoading } = useQuery({
     queryKey: ["user"],
@@ -62,8 +77,8 @@ export default function AdminDashboard() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: (data: { userId: string; role?: "user" | "admin"; subscription?: "free" | "pro" }) =>
-      adminApi.updateUser(data.userId, { role: data.role, subscription: data.subscription }),
+    mutationFn: ({ userId, ...data }: AdminUpdateUserRequest & { userId: string }) =>
+      adminApi.updateUser(userId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
       toast({ title: "User updated successfully!" });
@@ -94,7 +109,7 @@ export default function AdminDashboard() {
   });
 
   const sendEmailMutation = useMutation({
-    mutationFn: (data: { subject: string; body: string; target: "all" | "free" | "pro" }) =>
+    mutationFn: (data: BulkEmailRequest) =>
       adminApi.sendBulkEmail(data),
     onSuccess: () => {
       toast({ title: "Bulk email sent successfully!" });
@@ -119,6 +134,10 @@ export default function AdminDashboard() {
     setEditingUser(u);
     setEditRole(u.role);
     setEditSubscription(u.subscription);
+    setEditLimit(
+      u.unlimited_prompts ? "unlimited" : u.max_prompts === planById(u.subscription).limit ? "plan" : u.max_prompts
+    );
+    setResetUsage(false);
     setIsEditDialogOpen(true);
   };
 
@@ -128,6 +147,9 @@ export default function AdminDashboard() {
       userId: editingUser.id,
       role: editRole,
       subscription: editSubscription,
+      max_prompts: typeof editLimit === "number" ? editLimit : planById(editSubscription).limit,
+      unlimited_prompts: editLimit === "unlimited",
+      reset_usage: resetUsage,
     });
   };
 
@@ -214,12 +236,16 @@ export default function AdminDashboard() {
                                   </span>
                                 </TableCell>
                                 <TableCell>
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${u.subscription === 'pro' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-[var(--theme-background-tertiary)] text-[var(--theme-text-secondary)]'}`}>
-                                    {u.subscription.toUpperCase()}
+                                  <span className={cn("inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold", PLAN_BADGE[u.subscription] ?? PLAN_BADGE.free)}>
+                                    {planById(u.subscription).label.toUpperCase()}
                                   </span>
                                 </TableCell>
                                 <TableCell>
-                                  <div className="text-sm text-[var(--theme-text)]">{u.prompts_used} / {u.max_prompts}</div>
+                                  <div className="text-sm tabular-nums text-[var(--theme-text)]">{promptUsage(u).usedLabel} prompts</div>
+                                  <div className="text-[11px] tabular-nums text-[var(--theme-text-secondary)]">{previewUsage(u).usedLabel} previews</div>
+                                  {promptUsage(u).resetsOn && !u.unlimited_prompts && (
+                                    <div className="text-[11px] text-[var(--theme-text-tertiary)]">Renews {promptUsage(u).resetsOn}</div>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-right space-x-2">
                                   <Button variant="ghost" size="icon" onClick={() => handleEditOpen(u)} className="h-8 w-8 text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent-1)]">
@@ -257,8 +283,9 @@ export default function AdminDashboard() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Users</SelectItem>
-                            <SelectItem value="free">Free Users</SelectItem>
-                            <SelectItem value="pro">Pro Users</SelectItem>
+                            {PLANS.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.label} Users</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -306,7 +333,7 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle>Edit User: {editingUser?.username}</DialogTitle>
             <DialogDescription className="text-[var(--theme-text-secondary)]">
-              Modify role and subscription limits. Max prompts will auto-update on backend if you switch subscription to Pro.
+              Change the role, plan and monthly prompt allowance. Usage renews every month.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
@@ -324,16 +351,72 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-[var(--theme-text-secondary)]">Subscription</label>
-              <Select value={editSubscription} onValueChange={(val: any) => setEditSubscription(val)}>
+              <Select value={editSubscription} onValueChange={(val: Plan) => setEditSubscription(val)}>
                 <SelectTrigger className="w-full bg-canvas/60">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
+                  {PLANS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label} · {p.limit} prompts / month
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[var(--theme-text-secondary)]">Monthly prompts</label>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { value: "plan", label: `Plan default (${planById(editSubscription).limit})` },
+                  ...EXTRA_PROMPT_PRESETS.map((n) => ({ value: n, label: String(n) })),
+                  { value: "unlimited", label: "Unlimited" },
+                ] as { value: LimitChoice; label: string }[]).map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => setEditLimit(opt.value)}
+                    aria-pressed={editLimit === opt.value}
+                    className={cn(
+                      "flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                      editLimit === opt.value
+                        ? "border-brand/50 bg-brand/10 text-fg"
+                        : "border-line bg-canvas/60 text-fg-muted hover:text-fg"
+                    )}
+                  >
+                    {opt.value === "unlimited" && <InfinityIcon className="h-3.5 w-3.5" />}
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Or enter a custom number"
+                value={typeof editLimit === "number" && !EXTRA_PROMPT_PRESETS.includes(editLimit) ? editLimit : ""}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setEditLimit(Number.isNaN(n) ? "plan" : Math.max(0, n));
+                }}
+                className="bg-canvas/60"
+              />
+              <p className="text-xs text-[var(--theme-text-tertiary)]">
+                {editLimit === "unlimited"
+                  ? "This user can generate as many prompts as they like."
+                  : `${typeof editLimit === "number" ? editLimit : planById(editSubscription).limit} prompts each month. Stays in place when the month renews.`}
+              </p>
+            </div>
+            {editingUser && (
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--theme-text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={resetUsage}
+                  onChange={(e) => setResetUsage(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--theme-accent-1)]"
+                />
+                Reset this month&apos;s usage ({editingUser.prompts_used} prompts, {editingUser.previews_used ?? 0} previews used)
+              </label>
+            )}
             <Button 
               onClick={handleEditSave} 
               disabled={updateUserMutation.isPending}

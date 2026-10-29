@@ -13,6 +13,7 @@ import Image from "next/image";
 import { Camera, User as UserIcon, LogOut, Mail, CalendarDays, ShieldCheck } from "lucide-react";
 import { clearAllAuthData } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { planById, previewUsage, promptUsage } from "@/lib/plans";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -66,9 +67,9 @@ export default function ProfilePage() {
     router.push("/login");
   };
 
-  const usagePct =
-    user && user.max_prompts > 0 ? Math.min(100, (user.prompts_used / user.max_prompts) * 100) : 0;
-  const limitReached = !!user && user.prompts_used >= user.max_prompts;
+  const usage = user ? promptUsage(user) : null;
+  const usagePct = usage?.unlimited ? 100 : usage?.percent ?? 0;
+  const limitReached = !!usage?.limitReached;
 
   return (
     <ProtectedRoute>
@@ -177,8 +178,11 @@ export default function ProfilePage() {
                   <section className="animate-rise rounded-3xl border border-line bg-surface p-6 shadow-soft [animation-delay:60ms]">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="text-sm font-medium text-fg">Prompt usage</h3>
-                        <p className="mt-0.5 text-xs text-fg-muted">Each generated prompt uses one credit.</p>
+                        <h3 className="text-sm font-medium text-fg">Prompt usage · {planById(user.subscription).label} plan</h3>
+                        <p className="mt-0.5 text-xs text-fg-muted">
+                          Each generated prompt uses one credit.
+                          {usage?.resetsOn && !usage.unlimited && ` Your credits renew on ${usage.resetsOn}.`}
+                        </p>
                       </div>
                       {limitReached && (
                         <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-400">
@@ -188,7 +192,9 @@ export default function ProfilePage() {
                     </div>
                     <div className="mt-5 flex items-baseline gap-1.5">
                       <span className="text-3xl font-semibold tabular-nums tracking-tight text-fg">{user.prompts_used}</span>
-                      <span className="text-sm text-fg-muted">/ {user.max_prompts} used</span>
+                      <span className="text-sm text-fg-muted">
+                        {usage?.unlimited ? "used · unlimited" : `/ ${user.max_prompts} used this month`}
+                      </span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-elevated">
                       <div
@@ -196,6 +202,9 @@ export default function ProfilePage() {
                         style={{ width: `${usagePct}%` }}
                       />
                     </div>
+                    <p className="mt-3 text-xs text-fg-muted">
+                      UI previews: <span className="tabular-nums text-fg">{previewUsage(user).usedLabel}</span> used this month
+                    </p>
                   </section>
                 )}
 

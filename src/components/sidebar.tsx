@@ -25,6 +25,7 @@ import { clearAllAuthData } from "@/lib/auth";
 import { promptsApi, authApi } from "@/lib/api";
 import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { planById, promptUsage } from "@/lib/plans";
 import Image from "next/image";
 
 const GROUP_ORDER = ["Today", "Yesterday", "This Week", "Earlier"];
@@ -94,8 +95,8 @@ export default function Sidebar() {
     ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
 
-  const usagePct =
-    user && user.max_prompts > 0 ? Math.min(100, (user.prompts_used / user.max_prompts) * 100) : 0;
+  const usage = user ? promptUsage(user) : null;
+  const usagePct = usage?.percent ?? 0;
 
   const sidebarContent = (
     <div className="flex h-full flex-col border-r border-line bg-surface">
@@ -214,17 +215,22 @@ export default function Sidebar() {
         {user && user.role !== "admin" && (
           <div className="rounded-xl border border-line bg-canvas/60 px-3 py-2.5">
             <div className="mb-1.5 flex items-center justify-between text-[11px]">
-              <span className="text-fg-muted">Prompts used</span>
-              <span className={cn("font-medium tabular-nums", usagePct >= 100 ? "text-red-400" : "text-fg")}>
-                {user.prompts_used} / {user.max_prompts}
+              <span className="text-fg-muted">
+                {planById(user.subscription).label} · this month
+              </span>
+              <span className={cn("font-medium tabular-nums", usage?.limitReached ? "text-red-400" : "text-fg")}>
+                {usage?.usedLabel}
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-elevated">
               <div
                 className={cn("h-full rounded-full transition-all", usagePct >= 100 ? "bg-red-500" : "bg-brand-gradient")}
-                style={{ width: `${usagePct}%` }}
+                style={{ width: `${usage?.unlimited ? 100 : usagePct}%` }}
               />
             </div>
+            {usage?.resetsOn && !usage.unlimited && (
+              <p className="mt-1.5 text-[10px] text-fg-subtle">Renews {usage.resetsOn}</p>
+            )}
           </div>
         )}
 

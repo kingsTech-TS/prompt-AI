@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { PaginatedPromptResponse, PromptResponse, UserResponse } from "@/lib/types";
 import { promptsApi, authApi } from "@/lib/api";
+import { promptUsage } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import {
   Trash2,
@@ -119,7 +120,7 @@ export default function DashboardPage() {
     { label: "UI prompts", value: prompts.length - ideaCount },
     { label: "Idea blueprints", value: ideaCount },
     ...(user && user.role !== "admin"
-      ? [{ label: "Remaining", value: Math.max(0, user.max_prompts - user.prompts_used) }]
+      ? [{ label: "Left this month", value: user.unlimited_prompts ? "∞" : promptUsage(user).remaining }]
       : []),
   ];
 

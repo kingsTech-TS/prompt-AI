@@ -8,6 +8,7 @@ import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { promptsApi, authApi } from "@/lib/api";
+import { promptUsage } from "@/lib/plans";
 import { ApiError } from "@/lib/errors";
 import { ThinkingStatus, type ThinkingStep } from "@/components/thinking-status";
 import { Upload, X, ArrowRight, Link as LinkIcon, Image as ImageIcon, Sparkles } from "lucide-react";
@@ -97,7 +98,8 @@ export default function GeneratePage() {
     generateMutation.mutate(formData);
   };
 
-  const limitReached = user ? user.role !== "admin" && user.prompts_used >= user.max_prompts : false;
+  const usage = user ? promptUsage(user) : null;
+  const limitReached = user ? user.role !== "admin" && !!usage?.limitReached : false;
   const canSubmit = !!url.trim() || images.length > 0;
   const busy = generateMutation.isPending;
 
@@ -249,11 +251,11 @@ export default function GeneratePage() {
               <div className="flex flex-col gap-3 border-t border-line bg-canvas/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-fg-subtle">
                   {limitReached
-                    ? "You've reached your prompt limit."
+                    ? `You've used this month's prompts.${usage?.resetsOn ? ` They renew on ${usage.resetsOn}.` : ""}`
                     : user?.role === "admin"
                       ? "Admin accounts can't generate prompts."
                       : user
-                        ? `${Math.max(0, user.max_prompts - user.prompts_used)} prompts remaining`
+                        ? usage?.remainingLabel
                         : ""}
                 </p>
                 <Button

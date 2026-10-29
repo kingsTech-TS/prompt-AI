@@ -18,6 +18,9 @@ import {
   SubCollectionCreate,
   SubCollectionResponse,
   IdeaGenerateRequest,
+  PreviewResponse,
+  AdminUpdateUserRequest,
+  BulkEmailRequest,
 } from "@/lib/types";
 import { ApiError, friendlyMessage, networkErrorMessage } from "@/lib/errors";
 
@@ -152,6 +155,16 @@ export const promptsApi = {
     fetchJson<{ message: string }>(`/api/v1/prompts/${promptId}`, {
       method: "DELETE",
     }),
+
+  getPreview: (promptId: string) =>
+    fetchJson<PreviewResponse>(`/api/v1/prompts/${promptId}/preview`),
+
+  /** Builds a new preview; `content` previews a refined version from the chat instead of the original prompt. */
+  generatePreview: (promptId: string, content?: string) =>
+    fetchJson<PreviewResponse>(`/api/v1/prompts/${promptId}/preview`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
 };
 
 // Chat API
@@ -221,7 +234,7 @@ export const collectionsApi = {
 export const adminApi = {
   getUsers: () => fetchJson<UserResponse[]>("/api/v1/admin/users"),
 
-  updateUser: (userId: string, data: { role?: "user" | "admin"; subscription?: "free" | "pro"; max_prompts?: number }) =>
+  updateUser: (userId: string, data: AdminUpdateUserRequest) =>
     fetchJson<UserResponse>(`/api/v1/admin/users/${userId}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -232,7 +245,7 @@ export const adminApi = {
       method: "DELETE",
     }),
 
-  sendBulkEmail: (data: { subject: string; body: string; target: "all" | "free" | "pro" }) =>
+  sendBulkEmail: (data: BulkEmailRequest) =>
     fetchJson<{ message: string; task_id?: string }>(`/api/v1/admin/bulk-email`, {
       method: "POST",
       body: JSON.stringify(data),
